@@ -2,6 +2,25 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.2.0] - 2026-11-20
+
+Testée sur 41 packages réels. Les quatre erreurs que le contrôle de configuration de Home Assistant laissait passer sont maintenant bloquées, ou signalées clairement pour la dernière.
+
+### Ajouté
+- **Contrôles faits avant toute écriture.** En cas d'erreur, le panneau affiche « rien n'a été écrit ». Sans ces contrôles, ces erreurs ne se voient qu'au démarrage ou dans les journaux.
+  - **Templates Jinja** : ils sont compilés avec le moteur de Home Assistant, et le panneau indique le chemin de la clé fautive.
+  - **Automatisations et scripts** : ils sont validés avec les fonctions de chargement de Home Assistant (déclencheur, condition ou action mal écrits).
+  - **`unique_id` et id d'automatisation déjà utilisés par un autre package** : le contrôle compare au même domaine et à la même plateforme, et indique quel package les utilise déjà.
+- **Avant une suppression**, le panneau liste les autres packages qui citent les entités créées par le package (API `package_keeper/dependents`) et demande une confirmation explicite.
+- **Liste utilisable avec une centaine de packages** :
+  - recherche par nom ou par description pendant la frappe, avec le compteur « x / y » ;
+  - regroupement par sous-dossier ;
+  - menu déroulant compact sur écran étroit.
+- **L'avis d'Entity Inventory** (entités disparues, actions inconnues) s'affiche en tête du résultat, en orange. Il reste indicatif.
+
+### Corrigé
+- **Mode `include_dir_merge_named`** : le plan d'application et les contrôles portent sur le contenu des packages, et non plus sur leurs noms.
+
 ## [0.1.1] - 2026-11-20
 
 ### Corrigé

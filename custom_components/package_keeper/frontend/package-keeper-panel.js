@@ -21,6 +21,12 @@ const TEXTS = {
     restore: "Restaurer",
     reload: "Recharger maintenant",
     confirmDelete: "Supprimer « {name} » ? Une sauvegarde est conservée : vous pourrez le restaurer.",
+    confirmDeleteUsed: "Attention : d'autres packages utilisent des entités créées par « {name} » :\n\n{list}\n\nIls ne fonctionneront plus correctement. Supprimer quand même ? (Une sauvegarde est conservée.)",
+    search: "Rechercher (nom ou description)",
+    count: "{shown} / {total}",
+    noMatch: "Aucun package ne correspond.",
+    choose: "Choisir un package…",
+    rootFolder: "Dossier principal",
     confirmRestore: "Remplacer « {name} » par la version du {date} ?",
     checked: "Vérification réussie : le package est lisible. Rien n'a encore été enregistré.",
     saved: "Package « {name} » enregistré. La configuration est valide.",
@@ -30,7 +36,7 @@ const TEXTS = {
     reloadHint: "À recharger pour prendre effet :",
     restartHint: "Redémarrage de Home Assistant nécessaire pour : {list}. Paramètres → Système → Redémarrer (ou Deferred Restart si vous l'utilisez).",
     reloaded: "Rechargé : {list}.",
-    advice: "Avis d'Entity Inventory (indicatif : une entité créée par ce package n'existe pas encore et peut être signalée)",
+    advice: "À vérifier avant d'aller plus loin — avis d'Entity Inventory (une entité créée par ce package lui-même n'existe pas encore et peut être signalée à tort)",
     adviceErrors: "Erreurs probables",
     adviceWarnings: "Avertissements",
     backups: "Versions sauvegardées de « {name} »",
@@ -51,6 +57,7 @@ const TEXTS = {
       not_found: "Introuvable.",
       packages_disabled: "Les packages ne sont pas activés dans configuration.yaml.",
       config_invalid: "La configuration de Home Assistant ne passait plus le contrôle.",
+      invalid_content: "Le package contient des erreurs que Home Assistant ne signalerait qu'au démarrage. Rien n'a été écrit.",
       unknown: "Erreur inattendue.",
     },
   },
@@ -72,6 +79,12 @@ const TEXTS = {
     restore: "Restore",
     reload: "Reload now",
     confirmDelete: "Delete “{name}”? A backup is kept: you will be able to restore it.",
+    confirmDeleteUsed: "Warning: other packages use entities created by “{name}”:\n\n{list}\n\nThey will no longer work properly. Delete anyway? (A backup is kept.)",
+    search: "Search (name or description)",
+    count: "{shown} / {total}",
+    noMatch: "No package matches.",
+    choose: "Choose a package…",
+    rootFolder: "Main folder",
     confirmRestore: "Replace “{name}” with the version from {date}?",
     checked: "Check passed: the package is readable. Nothing has been saved yet.",
     saved: "Package “{name}” saved. The configuration is valid.",
@@ -81,7 +94,7 @@ const TEXTS = {
     reloadHint: "Reload to apply:",
     restartHint: "Home Assistant restart required for: {list}. Settings → System → Restart (or Deferred Restart if you use it).",
     reloaded: "Reloaded: {list}.",
-    advice: "Entity Inventory advice (indicative: an entity created by this package does not exist yet and may be reported)",
+    advice: "Check before going further — Entity Inventory advice (an entity created by this package itself does not exist yet and may be wrongly reported)",
     adviceErrors: "Likely errors",
     adviceWarnings: "Warnings",
     backups: "Saved versions of “{name}”",
@@ -102,6 +115,7 @@ const TEXTS = {
       not_found: "Not found.",
       packages_disabled: "Packages are not enabled in configuration.yaml.",
       config_invalid: "Home Assistant's configuration no longer passed the check.",
+      invalid_content: "The package contains errors Home Assistant would only report at startup. Nothing was written.",
       unknown: "Unexpected error.",
     },
   },
@@ -127,13 +141,17 @@ const STYLE = `
   button.danger { background: var(--error-color); }
   button:disabled { opacity: .5; cursor: default; }
   .bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
-  input[type=text] { font: inherit; width: 100%; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); font-family: var(--code-font-family, monospace); }
+  input[type=text], input[type=search] { font: inherit; width: 100%; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); font-family: var(--code-font-family, monospace); }
   textarea { width: 100%; min-height: 420px; box-sizing: border-box; font-family: var(--code-font-family, monospace); font-size: 13px; padding: 8px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
   .editor { margin-top: 8px; min-height: 420px; border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; }
   .msg { padding: 10px 12px; border-radius: 8px; margin: 8px 0; white-space: pre-wrap; }
   .ok { background: rgba(67,160,71,.15); }
   .err { background: rgba(219,68,55,.15); }
   .info { background: var(--secondary-background-color); }
+  .warn { background: rgba(255,152,0,.18); border-left: 4px solid var(--warning-color, #ff9800); }
+  .search { margin-bottom: 4px; }
+  .folder { font-size: 12px; font-weight: 500; color: var(--secondary-text-color); margin: 10px 0 2px; text-transform: uppercase; }
+  select { font: inherit; width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
   pre { white-space: pre-wrap; font-family: var(--code-font-family, monospace); font-size: 12px; margin: 6px 0 0; }
   .dialog { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 10; }
   .dialog .card { width: min(700px, 92vw); max-height: 80vh; }
@@ -143,7 +161,7 @@ class PackageKeeperPanel extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
-    this._state = { overview: null, current: null, isNew: false, newName: "", text: "", original: "", result: null, busy: false };
+    this._state = { overview: null, current: null, isNew: false, newName: "", text: "", original: "", result: null, busy: false, filter: "" };
   }
 
   set hass(hass) {
@@ -153,7 +171,11 @@ class PackageKeeperPanel extends HTMLElement {
     if (first) this._init();
   }
 
-  set narrow(_value) {}
+  set narrow(value) {
+    const changed = this._narrow !== value;
+    this._narrow = value;
+    if (changed && this._root) this._render();
+  }
   set panel(_value) {}
 
   get t() {
@@ -222,7 +244,12 @@ class PackageKeeperPanel extends HTMLElement {
     this._render();
     try {
       if (kind === "delete") {
-        if (!confirm(this._fmt(this.t.confirmDelete, { name }))) return;
+        const { dependents } = await this._ws("dependents", { name });
+        const used = Object.entries(dependents || {}).map(([pkg, ids]) => `• ${pkg} : ${ids.join(", ")}`);
+        const question = used.length
+          ? this._fmt(this.t.confirmDeleteUsed, { name, list: used.join("\n") })
+          : this._fmt(this.t.confirmDelete, { name });
+        if (!confirm(question)) return;
         s.result = await this._ws("delete", { name, confirm: true });
         if (s.result.ok) Object.assign(s, { current: null, isNew: false, text: "", original: "" });
       } else {
@@ -310,6 +337,13 @@ class PackageKeeperPanel extends HTMLElement {
     if (!r) return null;
     const t = this.t;
     const box = this._el("div");
+    if (r.advice && (r.advice.errors || r.advice.warnings)) {
+      const adv = this._el("div", { class: "msg warn", text: t.advice });
+      for (const [key, label] of [["errors", t.adviceErrors], ["warnings", t.adviceWarnings]]) {
+        if (r.advice[key]?.length) adv.append(this._el("pre", { text: `${label} :\n- ${r.advice[key].join("\n- ")}` }));
+      }
+      box.append(adv);
+    }
     if (r.ok) {
       const key = { checked: "checked", saved: "saved", restored: "restored", deleted: "deletedOk" }[r.action] || "saved";
       box.append(this._el("div", { class: "msg ok", text: this._fmt(t[key], { name: r.name }) }));
@@ -318,13 +352,6 @@ class PackageKeeperPanel extends HTMLElement {
       const msg = this._el("div", { class: "msg err", text });
       if (r.detail) msg.append(this._el("pre", { text: r.detail }));
       box.append(msg);
-    }
-    if (r.advice && (r.advice.errors || r.advice.warnings)) {
-      const adv = this._el("div", { class: "msg info", text: t.advice });
-      for (const [key, label] of [["errors", t.adviceErrors], ["warnings", t.adviceWarnings]]) {
-        if (r.advice[key]?.length) adv.append(this._el("pre", { text: `${label} :\n- ${r.advice[key].join("\n- ")}` }));
-      }
-      box.append(adv);
     }
     if (r.ok && r.action !== "checked") {
       if (r.reload?.length) {
@@ -335,6 +362,76 @@ class PackageKeeperPanel extends HTMLElement {
       if (r.reloadedNow?.length) box.append(this._el("div", { class: "msg ok", text: this._fmt(t.reloaded, { list: r.reloadedNow.join(", ") }) }));
       if (r.restart?.length) box.append(this._el("div", { class: "msg info", text: this._fmt(t.restartHint, { list: r.restart.join(", ") }) }));
     }
+    return box;
+  }
+
+  _matches() {
+    const all = this._state.overview?.packages || [];
+    const words = this._state.filter.toLowerCase().split(/\s+/).filter(Boolean);
+    if (!words.length) return all;
+    return all.filter((p) => {
+      const hay = `${p.name} ${p.description || ""}`.toLowerCase();
+      return words.every((w) => hay.includes(w));
+    });
+  }
+
+  _renderList() {
+    const t = this.t;
+    const s = this._state;
+    const all = s.overview?.packages || [];
+    const box = this._el("div");
+    if (!all.length) {
+      if (s.overview) box.append(this._el("p", { class: "muted", text: t.none }));
+      return box;
+    }
+    const search = this._el("input", { type: "search", class: "search", placeholder: t.search, "aria-label": t.search });
+    search.value = s.filter;
+    const counter = this._el("div", { class: "muted" });
+    const holder = this._el("div");
+    const fill = () => {
+      const shown = this._matches();
+      counter.textContent = this._fmt(t.count, { shown: shown.length, total: all.length });
+      holder.innerHTML = "";
+      if (!shown.length) {
+        holder.append(this._el("p", { class: "muted", text: t.noMatch }));
+        return;
+      }
+      if (this._narrow) {
+        const select = this._el("select", { "aria-label": t.choose });
+        select.append(this._el("option", { value: "", text: t.choose }));
+        for (const p of shown) {
+          const option = this._el("option", { value: p.name, text: p.description ? `${p.name} — ${p.description}` : p.name });
+          if (p.name === s.current) option.selected = true;
+          select.append(option);
+        }
+        select.addEventListener("change", () => select.value && this._open(select.value));
+        holder.append(select);
+        return;
+      }
+      const folders = new Map();
+      for (const p of shown) {
+        const folder = p.name.includes("/") ? p.name.slice(0, p.name.lastIndexOf("/")) : "";
+        if (!folders.has(folder)) folders.set(folder, []);
+        folders.get(folder).push(p);
+      }
+      const several = folders.size > 1 || !folders.has("");
+      for (const [folder, items] of [...folders].sort(([a], [b]) => a.localeCompare(b))) {
+        if (several) holder.append(this._el("div", { class: "folder", text: folder || t.rootFolder }));
+        const list = this._el("ul");
+        for (const p of items) {
+          list.append(this._el("li", { class: p.name === s.current ? "active" : "", onclick: () => this._open(p.name) },
+            this._el("div", { class: "n", text: p.name }),
+            p.description ? this._el("div", { class: "d", text: p.description }) : null));
+        }
+        holder.append(list);
+      }
+    };
+    search.addEventListener("input", () => {
+      s.filter = search.value;
+      fill();
+    });
+    box.append(search, counter, holder);
+    fill();
     return box;
   }
 
@@ -363,14 +460,7 @@ class PackageKeeperPanel extends HTMLElement {
       this._el("h2", { text: t.packages }),
       o ? this._el("div", { class: "muted", text: this._fmt(t.folder, { dir: o.directory }) }) : null,
       this._el("div", { class: "bar" }, this._el("button", { text: t.newPackage, onclick: () => this._new() })));
-    const list = this._el("ul");
-    for (const p of o?.packages || []) {
-      list.append(this._el("li", { class: p.name === s.current ? "active" : "", onclick: () => this._open(p.name) },
-        this._el("div", { class: "n", text: p.name }),
-        p.description ? this._el("div", { class: "d", text: p.description }) : null));
-    }
-    if (o && !o.packages.length) list.append(this._el("p", { class: "muted", text: t.none }));
-    side.append(list);
+    side.append(this._renderList());
     if (o?.deleted?.length) {
       side.append(this._el("h2", { text: t.deleted }));
       const del = this._el("ul");

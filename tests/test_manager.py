@@ -204,3 +204,89 @@ async def test_reload_only_reload_actions(hass: HomeAssistant, entry) -> None:
         ["input_boolean.reload", "light.turn_off", "absent.reload"]
     )
     assert done == ["input_boolean.reload"] and called == ["ib"]
+
+
+# --- 0.2.0 : contrôles que Home Assistant ne fait qu'au démarrage ----------
+
+
+async def test_broken_template_refused(hass: HomeAssistant, entry, config_dir: Path) -> None:
+    text = (
+        "template:\n  - sensor:\n      - name: Essai\n        unique_id: essai_tpl\n"
+        "        state: \"{{ states('sensor.x') | float(0 }}\"\n"
+    )
+    outcome = await _manager(entry).async_save("tpl", text)
+    assert outcome.error == "invalid_content" and "Template invalide" in outcome.detail
+    assert "state" in outcome.detail  # chemin de la clé fautive
+    assert not (config_dir / "packages" / "tpl.yaml").exists()
+    ok = text.replace("float(0 }}", "float(0) }}")
+    assert (await _manager(entry).async_save("tpl", ok, dry_run=True)).ok
+
+
+async def test_invalid_automation_and_script_refused(hass: HomeAssistant, entry) -> None:
+    automation = (
+        "automation:\n  - id: essai_auto\n    alias: Essai\n    triggers:\n"
+        "      - trigger: heure_fixe\n    actions: []\n"
+    )
+    outcome = await _manager(entry).async_save("auto", automation, dry_run=True)
+    assert outcome.error == "invalid_content" and "Automatisation « Essai »" in outcome.detail
+
+    script = "script:\n  essai:\n    sequence:\n      - delay: pas_une_duree\n"
+    outcome = await _manager(entry).async_save("scr", script, dry_run=True)
+    assert outcome.error == "invalid_content" and "Script « essai »" in outcome.detail
+
+    good = (
+        "automation old:\n  - id: essai_ok\n    triggers:\n      - trigger: time\n"
+        "        at: '22:00:00'\n    actions: []\nscript:\n  essai:\n    sequence: []\n"
+    )
+    assert (await _manager(entry).async_save("ok", good, dry_run=True)).ok
+
+
+async def test_duplicate_unique_id_refused(hass: HomeAssistant, entry, config_dir: Path) -> None:
+    derivee = (
+        "sensor:\n  - platform: derivative\n    source: sensor.x\n    name: Pente\n"
+        "    unique_id: pente_x\n"
+        "template:\n  - sensor:\n      - name: A\n        unique_id: meme_id\n        state: '1'\n"
+        "automation:\n  - id: auto_1\n    triggers: []\n    actions: []\n"
+    )
+    manager = _manager(entry)
+    assert (await manager.async_save("derivee", derivee)).ok
+    # Re-enregistrer le même package n'est pas un doublon
+    assert (await manager.async_save("derivee", derivee + "\n")).ok
+
+    outcome = await manager.async_save("copie", derivee, dry_run=True)
+    assert outcome.error == "invalid_content"
+    for uid in ("pente_x", "meme_id", "auto_1"):
+        assert f"« {uid} » déjà utilisé par le package « derivee »" in outcome.detail
+
+    # Même unique_id mais autre domaine ou autre plateforme : pas un conflit
+    other = (
+        "template:\n  - binary_sensor:\n      - name: B\n        unique_id: meme_id\n"
+        "        state: 'on'\n"
+        "sensor:\n  - platform: statistics\n    source: sensor.x\n    name: Stat\n"
+        "    unique_id: pente_x\n    state_characteristic: mean\n    max_age:\n      hours: 1\n"
+    )
+    assert (await manager.async_save("autre", other, dry_run=True)).ok
+
+
+async def test_dependents_before_delete(hass: HomeAssistant, entry, config_dir: Path) -> None:
+    manager = _manager(entry)
+    assert (await manager.async_save("salon", GOOD)).ok
+    user = (
+        "automation:\n  - id: utilise_salon\n    triggers:\n      - trigger: state\n"
+        "        entity_id: input_boolean.fenetre_salon_virtuelle\n    actions: []\n"
+    )
+    assert (await manager.async_save("utilisateur", user)).ok
+    assert await manager.async_dependents("salon") == {
+        "utilisateur": ["input_boolean.fenetre_salon_virtuelle"]
+    }
+    assert await manager.async_dependents("utilisateur") == {}
+
+
+async def test_merge_mode_body(hass: HomeAssistant, entry, config_dir: Path) -> None:
+    (config_dir / "configuration.yaml").write_text(
+        "homeassistant:\n  packages: !include_dir_merge_named packages\n", encoding="utf-8"
+    )
+    text = "salon:\n  input_boolean:\n    fenetre_merge:\n      name: Fenêtre\n"
+    outcome = await _manager(entry).async_save("salon", text)
+    assert outcome.ok, outcome
+    assert outcome.restart == ["input_boolean"] or outcome.reload == ["input_boolean.reload"]

@@ -16,7 +16,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import check_config
 from homeassistant.util.yaml.loader import Secrets, load_yaml_dict
 
-from . import store
+from . import deep_checks, store
 from .admin_phone import CONF_ADMIN_NOTIFY_TARGET, async_notify_admin
 from .const import (
     CONF_BACKUPS_KEPT,
@@ -140,8 +140,16 @@ class PackageManager:
                 outcome.error, outcome.detail = err.code, err.detail or None
                 return outcome
 
+            body = _body(content, setup.mode)
+            problems = await self._deep_problems(setup, name, body)
+            if problems:
+                await self._run(store.discard, tmp)
+                outcome.error, outcome.detail = "invalid_content", "\n".join(problems)
+                outcome.advice = await self._advice(text)
+                return outcome
+
             outcome.advice = await self._advice(text)
-            outcome.reload, outcome.restart = self._reload_plan(content)
+            outcome.reload, outcome.restart = self._reload_plan(body)
             if dry_run:
                 await self._run(store.discard, tmp)
                 outcome.ok = True
@@ -176,7 +184,7 @@ class PackageManager:
             try:
                 path = await self._run(store.package_path, setup, name)
                 content = await self._run(_load, path, self.config_dir)
-                outcome.reload, outcome.restart = self._reload_plan(content)
+                outcome.reload, outcome.restart = self._reload_plan(_body(content, setup.mode))
             except PackageError:
                 pass  # un package illisible se supprime quand même
             before = await _config_problems(self.hass)
@@ -197,6 +205,20 @@ class PackageManager:
         except PackageError as err:
             return Outcome(ok=False, name=name, action="restored", error=err.code)
         return await self.async_save(name, text, action="restored")
+
+    async def async_dependents(self, name: str) -> dict[str, list[str]]:
+        """Autres packages qui citent les entités créées par celui-ci (avant suppression)."""
+        setup = await self._enabled_setup()
+        path = await self._run(store.package_path, setup, name)
+        try:
+            content = _body(await self._run(_load, path, self.config_dir), setup.mode)
+        except PackageError:
+            return {}
+        defined = deep_checks.defined_entities(self.hass, content)
+        if not defined:
+            return {}
+        _, texts = await self._run(_load_others, setup, name, self.config_dir)
+        return deep_checks.citing(defined, texts)
 
     async def async_reload(self, services: list[str]) -> list[str]:
         """Appelle les actions de rechargement proposées ; renvoie celles appelées."""
@@ -221,6 +243,17 @@ class PackageManager:
         if not setup.enabled:
             raise PackageError("packages_disabled")
         return setup
+
+    async def _deep_problems(
+        self, setup: PackagesSetup, name: str, body: dict[str, Any]
+    ) -> list[str]:
+        """Templates, automatisations, scripts, doublons d'identifiants."""
+        problems = deep_checks.template_errors(self.hass, body)
+        problems += await deep_checks.automation_script_errors(self.hass, body)
+        contents, _ = await self._run(_load_others, setup, name, self.config_dir)
+        others = {other: _body(content, setup.mode) for other, content in contents.items()}
+        problems += deep_checks.duplicate_errors(body, others)
+        return problems
 
     def _check_includes(self, setup: PackagesSetup, name: str, text: str) -> None:
         """Un !include ne doit pas aller chercher un fichier hors de /config."""
@@ -345,6 +378,36 @@ def _load(path: Path, config_dir: str) -> dict[str, Any]:
     if not content:
         raise PackageError("empty")
     return dict(content)
+
+
+def _body(content: dict[str, Any], mode: str | None) -> dict[str, Any]:
+    """Contenu « domaines » d'un fichier ; en mode merge_named, ses packages fusionnés."""
+    if mode != "include_dir_merge_named":
+        return content
+    merged: dict[str, Any] = {}
+    for value in content.values():
+        if isinstance(value, dict):
+            merged.update(value)
+    return merged
+
+
+def _load_others(
+    setup: PackagesSetup, exclude: str, config_dir: str
+) -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
+    """Contenu chargé et texte brut des AUTRES packages (les illisibles sont ignorés)."""
+    contents: dict[str, dict[str, Any]] = {}
+    texts: dict[str, str] = {}
+    for item in store.list_packages(setup):
+        other = item["name"]
+        if other == exclude:
+            continue
+        path = store.package_path(setup, other)
+        try:
+            texts[other] = path.read_text(encoding="utf-8")
+            contents[other] = _load(path, config_dir)
+        except (OSError, UnicodeDecodeError, PackageError):
+            continue
+    return contents, texts
 
 
 def _short(message: str, path: Path) -> str:

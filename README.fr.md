@@ -53,11 +53,13 @@ Le panneau **Package Keeper** apparaît dans la barre latérale, pour les admini
 3. **Enregistrer** : Package Keeper sauvegarde l'ancienne version, écrit le fichier de façon atomique, puis lance le contrôle de configuration, le même que le bouton *Vérifier la configuration*.
    - **Si un nouveau problème apparaît** (erreur YAML, intégration mal configurée, entité définie deux fois…), **la modification est annulée** et le problème est affiché.
    - Un problème qui existait déjà avant votre modification ne bloque pas l'enregistrement : sinon, on ne pourrait jamais réparer une configuration déjà cassée ailleurs.
+   - **Avant même d'écrire**, Package Keeper contrôle ce que Home Assistant ne vérifie qu'au démarrage : les templates Jinja, les automatisations et les scripts, et les `unique_id` déjà utilisés par un autre package.
 4. **Appliquer** :
    - pour les domaines qui se rechargent (automation, script, template, input_*…), un bouton **Recharger maintenant** suffit ;
    - pour les autres (`sensor` avec `platform: derivative`, `climate_template`…), le panneau indique qu'un **redémarrage** est nécessaire. Faites-le depuis *Paramètres → Système → Redémarrer*, ou avec Deferred Restart si vous l'utilisez.
 5. **Historique** : chaque package garde ses versions précédentes, que l'on peut consulter et restaurer.
-6. **Supprimer** : le fichier est déplacé dans les sauvegardes, après confirmation. Il reste restaurable depuis la section *Supprimés* du panneau.
+6. **Supprimer** : le fichier est déplacé dans les sauvegardes, après confirmation. Si d'autres packages utilisent les entités qu'il crée, ils sont listés avant la confirmation. Le package reste restaurable depuis la section *Supprimés* du panneau.
+7. **Rechercher** : le champ au-dessus de la liste filtre par nom et par description. Sur un écran étroit, la liste devient un menu déroulant.
 
 ## Téléphone admin, commun aux intégrations SDR
 

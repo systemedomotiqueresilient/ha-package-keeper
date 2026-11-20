@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import json
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -69,6 +70,10 @@ async def test_ws_full_cycle(hass: HomeAssistant, entry, hass_ws_client) -> None
     assert not reply["success"] and reply["error"]["code"] == "not_found"
     reply = await ws(type=f"{DOMAIN}/read", name="../secrets")
     assert reply["error"]["code"] == "invalid_name"
+
+    reply = await ws(type=f"{DOMAIN}/save", name="test_pk", text=GOOD)
+    reply = await ws(type=f"{DOMAIN}/dependents", name="test_pk")
+    assert reply["result"] == {"name": "test_pk", "dependents": {}}
 
     reply = await ws(type=f"{DOMAIN}/reload", services=["light.turn_off"])
     assert reply["result"] == {"reloaded": []}
@@ -195,9 +200,8 @@ async def test_panel_registered_admin_only(hass: HomeAssistant, config_dir: Path
     panel = Path(__file__).parents[1] / "custom_components" / DOMAIN / "frontend"
     js = (panel / "package-keeper-panel.js").read_text(encoding="utf-8")
     assert 'customElements.define("package-keeper-panel"' in js
-    assert "innerHTML = " not in js.replace('this._root.innerHTML = ""', "").replace(
-        'this.shadowRoot.innerHTML = ""', ""
-    )  # aucun contenu de fichier inséré en HTML
+    # Aucun contenu de fichier inséré en HTML : innerHTML ne sert qu'à vider
+    assert all(v == '""' for v in re.findall(r'innerHTML\s*=\s*(\S{2})', js))
 
 
 # --- Module commun et versions ------------------------------------------------

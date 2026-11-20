@@ -53,11 +53,13 @@ The **Package Keeper** panel appears in the sidebar, for administrators only.
 3. **Save**: Package Keeper backs up the previous version, writes the file atomically, then runs the configuration check, the same as the *Check configuration* button.
    - **If a new problem appears** (YAML error, misconfigured integration, entity defined twice…), **the change is cancelled** and the problem is shown.
    - A problem that already existed before your change does not block saving: otherwise a configuration already broken elsewhere could never be fixed.
+   - **Before writing anything**, Package Keeper checks what Home Assistant only checks at startup: Jinja templates, automations and scripts, and `unique_id` values already used by another package.
 4. **Apply**:
    - for domains that can be reloaded (automation, script, template, input_*…), a **Reload now** button is enough;
    - for the others (`sensor` with `platform: derivative`, `climate_template`…), the panel says a **restart** is needed. Do it from *Settings → System → Restart*, or with Deferred Restart if you use it.
 5. **History**: each package keeps its previous versions, which you can view and restore.
-6. **Delete**: the file is moved to the backups, after confirmation. It can still be restored from the panel's *Deleted* section.
+6. **Delete**: the file is moved to the backups, after confirmation. If other packages use the entities it creates, they are listed before the confirmation. It can still be restored from the panel's *Deleted* section.
+7. **Search**: the field above the list filters by name and description. On a narrow screen, the list becomes a drop-down menu.
 
 ## Admin phone, shared by the SDR integrations
 

@@ -2,9 +2,11 @@
   "domain": "package_keeper",
   "name": "Package Keeper",
   "after_dependencies": [
+    "automation",
     "entity_inventory",
     "frontend",
-    "panel_custom"
+    "panel_custom",
+    "script"
   ],
   "categories": [
     "computers_network.cloud_developer_tools"
@@ -23,5 +25,5 @@
   "issue_tracker": "https://github.com/systemedomotiqueresilient/ha-package-keeper/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.1.1"
+  "version": "0.2.0"
 }

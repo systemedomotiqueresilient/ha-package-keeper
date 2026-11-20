@@ -132,6 +132,16 @@ async def ws_restore(manager: PackageManager, msg: dict[str, Any]) -> dict:
 
 @websocket_api.require_admin
 @websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/dependents", vol.Required("name"): _NAME}
+)
+@websocket_api.async_response
+@_handler
+async def ws_dependents(manager: PackageManager, msg: dict[str, Any]) -> dict:
+    return {"name": msg["name"], "dependents": await manager.async_dependents(msg["name"])}
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
     {vol.Required("type"): f"{DOMAIN}/reload", vol.Required("services"): [str]}
 )
 @websocket_api.async_response
@@ -150,6 +160,7 @@ def async_register(hass: HomeAssistant) -> None:
         ws_backups,
         ws_read_backup,
         ws_restore,
+        ws_dependents,
         ws_reload,
     ):
         websocket_api.async_register_command(hass, command)
