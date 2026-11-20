@@ -1,10 +1,22 @@
 {
   "domain": "package_keeper",
   "name": "Package Keeper",
-  "after_dependencies": ["entity_inventory", "frontend", "panel_custom"],
-  "codeowners": ["@systemedomotiqueresilient"],
+  "after_dependencies": [
+    "entity_inventory",
+    "frontend",
+    "panel_custom"
+  ],
+  "categories": [
+    "computers_network.cloud_developer_tools"
+  ],
+  "codeowners": [
+    "@systemedomotiqueresilient"
+  ],
   "config_flow": true,
-  "dependencies": ["http", "websocket_api"],
+  "dependencies": [
+    "http",
+    "websocket_api"
+  ],
   "documentation": "https://github.com/systemedomotiqueresilient/ha-package-keeper",
   "integration_type": "service",
   "iot_class": "local_polling",
