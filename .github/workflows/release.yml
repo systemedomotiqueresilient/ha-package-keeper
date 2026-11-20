@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  asset:
+    name: Attach package_keeper.zip
+    # Les releases Marketplace/HACS n'existent que sur GitHub
+    if: github.server_url == 'https://github.com'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check tag format
+        run: |
+          if ! [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(b[0-9]+)?$ ]]; then
+            echo "::error::Le tag doit être de la forme vX.Y.Z (ou vX.Y.ZbN), reçu : $GITHUB_REF_NAME"
+            exit 1
+          fi
+
+      - name: Write version into manifest.json
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          MANIFEST=custom_components/package_keeper/manifest.json
+          jq --arg v "$VERSION" '.version = $v' "$MANIFEST" > manifest.tmp
+          mv manifest.tmp "$MANIFEST"
+          cat "$MANIFEST"
+
+      - name: Build zip (integration files at the zip root)
+        run: |
+          cd custom_components/package_keeper
+          zip -r "$GITHUB_WORKSPACE/package_keeper.zip" . -x '*__pycache__*'
+          unzip -l "$GITHUB_WORKSPACE/package_keeper.zip"
+
+      - name: Upload asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" package_keeper.zip --clobber

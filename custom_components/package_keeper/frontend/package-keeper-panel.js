@@ -1,0 +1,409 @@
+// Package Keeper : panneau latéral (administrateurs uniquement).
+// JavaScript sans dépendance ni compilation. Tout texte venant d'un fichier est
+// inséré avec textContent, jamais en HTML.
+
+const TEXTS = {
+  fr: {
+    title: "Package Keeper",
+    intro: "Collez le package proposé par l'IA, vérifiez-le, puis enregistrez-le. En cas d'erreur de configuration, l'ancienne version est remise automatiquement.",
+    packages: "Packages",
+    newPackage: "Nouveau package",
+    deleted: "Supprimés (restaurables)",
+    none: "Aucun package pour l'instant.",
+    name: "Nom du fichier (lettres minuscules, chiffres, _)",
+    namePlaceholder: "ex. derivee_salon",
+    check: "Vérifier",
+    save: "Enregistrer",
+    history: "Historique",
+    del: "Supprimer",
+    close: "Fermer",
+    view: "Voir",
+    restore: "Restaurer",
+    reload: "Recharger maintenant",
+    confirmDelete: "Supprimer « {name} » ? Une sauvegarde est conservée : vous pourrez le restaurer.",
+    confirmRestore: "Remplacer « {name} » par la version du {date} ?",
+    checked: "Vérification réussie : le package est lisible. Rien n'a encore été enregistré.",
+    saved: "Package « {name} » enregistré. La configuration est valide.",
+    restored: "Package « {name} » restauré. La configuration est valide.",
+    deletedOk: "Package « {name} » supprimé. Une sauvegarde est conservée.",
+    rolledBack: "Modification annulée : la configuration ne passait plus le contrôle de Home Assistant. L'ancienne version a été remise.",
+    reloadHint: "À recharger pour prendre effet :",
+    restartHint: "Redémarrage de Home Assistant nécessaire pour : {list}. Paramètres → Système → Redémarrer (ou Deferred Restart si vous l'utilisez).",
+    reloaded: "Rechargé : {list}.",
+    advice: "Avis d'Entity Inventory (indicatif : une entité créée par ce package n'existe pas encore et peut être signalée)",
+    adviceErrors: "Erreurs probables",
+    adviceWarnings: "Avertissements",
+    backups: "Versions sauvegardées de « {name} »",
+    noBackup: "Aucune sauvegarde.",
+    unsaved: "Modifications non enregistrées : les abandonner ?",
+    disabledTitle: "Les packages ne sont pas activés",
+    disabledText: "Package Keeper ne modifie jamais configuration.yaml. Ajoutez vous-même ces lignes au début de /config/configuration.yaml, puis redémarrez Home Assistant :",
+    disabledHow: "Pour éditer configuration.yaml : installez l'application complémentaire Samba share (Paramètres → Modules complémentaires) si ce n'est pas déjà fait, ouvrez le partage « config » depuis votre ordinateur, puis modifiez le fichier avec un éditeur de texte comme Notepad++ (en UTF-8, sans tabulations). Faites une sauvegarde avant.",
+    mergeMode: "Mode « include_dir_merge_named » : chaque fichier doit commencer par le nom du package, puis son contenu en retrait.",
+    folder: "Dossier : {dir}",
+    errors: {
+      invalid_name: "Nom invalide : lettres minuscules, chiffres et _ uniquement (sous-dossier possible avec /).",
+      symlink: "Ce chemin passe par un lien symbolique : refusé.",
+      empty: "Le package est vide.",
+      too_large: "Le package est trop volumineux (256 Ko au maximum).",
+      yaml_error: "YAML illisible.",
+      include_outside: "Un !include pointe hors de /config : refusé.",
+      not_found: "Introuvable.",
+      packages_disabled: "Les packages ne sont pas activés dans configuration.yaml.",
+      config_invalid: "La configuration de Home Assistant ne passait plus le contrôle.",
+      unknown: "Erreur inattendue.",
+    },
+  },
+  en: {
+    title: "Package Keeper",
+    intro: "Paste the package proposed by the AI, check it, then save it. If the configuration breaks, the previous version is put back automatically.",
+    packages: "Packages",
+    newPackage: "New package",
+    deleted: "Deleted (restorable)",
+    none: "No package yet.",
+    name: "File name (lowercase letters, digits, _)",
+    namePlaceholder: "e.g. living_room_derivative",
+    check: "Check",
+    save: "Save",
+    history: "History",
+    del: "Delete",
+    close: "Close",
+    view: "View",
+    restore: "Restore",
+    reload: "Reload now",
+    confirmDelete: "Delete “{name}”? A backup is kept: you will be able to restore it.",
+    confirmRestore: "Replace “{name}” with the version from {date}?",
+    checked: "Check passed: the package is readable. Nothing has been saved yet.",
+    saved: "Package “{name}” saved. The configuration is valid.",
+    restored: "Package “{name}” restored. The configuration is valid.",
+    deletedOk: "Package “{name}” deleted. A backup is kept.",
+    rolledBack: "Change cancelled: the configuration no longer passed Home Assistant's check. The previous version was put back.",
+    reloadHint: "Reload to apply:",
+    restartHint: "Home Assistant restart required for: {list}. Settings → System → Restart (or Deferred Restart if you use it).",
+    reloaded: "Reloaded: {list}.",
+    advice: "Entity Inventory advice (indicative: an entity created by this package does not exist yet and may be reported)",
+    adviceErrors: "Likely errors",
+    adviceWarnings: "Warnings",
+    backups: "Saved versions of “{name}”",
+    noBackup: "No backup.",
+    unsaved: "Unsaved changes: discard them?",
+    disabledTitle: "Packages are not enabled",
+    disabledText: "Package Keeper never modifies configuration.yaml. Add these lines yourself at the top of /config/configuration.yaml, then restart Home Assistant:",
+    disabledHow: "To edit configuration.yaml: install the Samba share add-on (Settings → Add-ons) if not done yet, open the “config” share from your computer, then edit the file with a text editor such as Notepad++ (UTF-8, no tabs). Make a backup first.",
+    mergeMode: "“include_dir_merge_named” mode: each file must start with the package name, followed by its indented content.",
+    folder: "Folder: {dir}",
+    errors: {
+      invalid_name: "Invalid name: lowercase letters, digits and _ only (subfolder allowed with /).",
+      symlink: "This path goes through a symbolic link: refused.",
+      empty: "The package is empty.",
+      too_large: "The package is too large (256 KB maximum).",
+      yaml_error: "Unreadable YAML.",
+      include_outside: "An !include points outside /config: refused.",
+      not_found: "Not found.",
+      packages_disabled: "Packages are not enabled in configuration.yaml.",
+      config_invalid: "Home Assistant's configuration no longer passed the check.",
+      unknown: "Unexpected error.",
+    },
+  },
+};
+
+const PACKAGES_SNIPPET = "homeassistant:\n  packages: !include_dir_named packages\n";
+
+const STYLE = `
+  :host { display: block; height: 100%; background: var(--primary-background-color); color: var(--primary-text-color); font-family: var(--paper-font-body1_-_font-family, sans-serif); }
+  .top { display: flex; align-items: center; gap: 12px; height: var(--header-height, 56px); padding: 0 16px; background: var(--app-header-background-color, var(--primary-color)); color: var(--app-header-text-color, white); font-size: 20px; }
+  .wrap { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 16px; padding: 16px; box-sizing: border-box; height: calc(100% - var(--header-height, 56px)); }
+  @media (max-width: 800px) { .wrap { grid-template-columns: 1fr; height: auto; } }
+  .card { background: var(--card-background-color); border-radius: var(--ha-card-border-radius, 12px); box-shadow: var(--ha-card-box-shadow, none); border: 1px solid var(--divider-color); padding: 16px; overflow: auto; }
+  h2 { font-size: 16px; margin: 0 0 8px; }
+  .muted { color: var(--secondary-text-color); font-size: 13px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { padding: 8px; border-radius: 8px; cursor: pointer; }
+  li:hover, li.active { background: var(--secondary-background-color); }
+  li .n { font-family: var(--code-font-family, monospace); font-size: 14px; }
+  li .d { font-size: 12px; color: var(--secondary-text-color); }
+  button { font: inherit; border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer; background: var(--primary-color); color: var(--text-primary-color, white); }
+  button.flat { background: transparent; color: var(--primary-color); border: 1px solid var(--divider-color); }
+  button.danger { background: var(--error-color); }
+  button:disabled { opacity: .5; cursor: default; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  input[type=text] { font: inherit; width: 100%; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); font-family: var(--code-font-family, monospace); }
+  textarea { width: 100%; min-height: 420px; box-sizing: border-box; font-family: var(--code-font-family, monospace); font-size: 13px; padding: 8px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
+  .editor { margin-top: 8px; min-height: 420px; border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; }
+  .msg { padding: 10px 12px; border-radius: 8px; margin: 8px 0; white-space: pre-wrap; }
+  .ok { background: rgba(67,160,71,.15); }
+  .err { background: rgba(219,68,55,.15); }
+  .info { background: var(--secondary-background-color); }
+  pre { white-space: pre-wrap; font-family: var(--code-font-family, monospace); font-size: 12px; margin: 6px 0 0; }
+  .dialog { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  .dialog .card { width: min(700px, 92vw); max-height: 80vh; }
+`;
+
+class PackageKeeperPanel extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._state = { overview: null, current: null, isNew: false, newName: "", text: "", original: "", result: null, busy: false };
+  }
+
+  set hass(hass) {
+    const first = !this._hass;
+    this._hass = hass;
+    if (this._editor && this._editor.tagName === "HA-CODE-EDITOR") this._editor.hass = hass;
+    if (first) this._init();
+  }
+
+  set narrow(_value) {}
+  set panel(_value) {}
+
+  get t() {
+    const lang = (this._hass?.language || "en").startsWith("fr") ? "fr" : "en";
+    return TEXTS[lang];
+  }
+
+  _fmt(text, values = {}) {
+    return text.replace(/\{(\w+)\}/g, (_, key) => values[key] ?? "");
+  }
+
+  _el(tag, attrs = {}, ...children) {
+    const el = document.createElement(tag);
+    for (const [key, value] of Object.entries(attrs)) {
+      if (key === "onclick") el.addEventListener("click", value);
+      else if (key === "text") el.textContent = value;
+      else if (value === true) el.setAttribute(key, "");
+      else if (value !== false && value != null) el.setAttribute(key, value);
+    }
+    for (const child of children) if (child) el.append(child);
+    return el;
+  }
+
+  async _ws(type, data = {}) {
+    return this._hass.callWS({ type: `package_keeper/${type}`, ...data });
+  }
+
+  async _init() {
+    this.shadowRoot.innerHTML = "";
+    this.shadowRoot.append(this._el("style", { text: STYLE }));
+    this._root = this._el("div");
+    this.shadowRoot.append(this._root);
+    await this._refresh();
+  }
+
+  async _refresh() {
+    try {
+      this._state.overview = await this._ws("overview");
+    } catch (err) {
+      this._state.result = { ok: false, error: "unknown", detail: err.message };
+    }
+    this._render();
+  }
+
+  _dirty() {
+    return this._state.text !== this._state.original;
+  }
+
+  async _open(name) {
+    if (this._dirty() && !confirm(this.t.unsaved)) return;
+    const { text } = await this._ws("read", { name });
+    Object.assign(this._state, { current: name, isNew: false, text, original: text, result: null });
+    this._render();
+  }
+
+  _new() {
+    if (this._dirty() && !confirm(this.t.unsaved)) return;
+    Object.assign(this._state, { current: "", isNew: true, newName: "", text: "", original: "", result: null });
+    this._render();
+  }
+
+  async _run(kind) {
+    const s = this._state;
+    const name = s.isNew ? s.newName.trim() : s.current;
+    s.busy = true;
+    this._render();
+    try {
+      if (kind === "delete") {
+        if (!confirm(this._fmt(this.t.confirmDelete, { name }))) return;
+        s.result = await this._ws("delete", { name, confirm: true });
+        if (s.result.ok) Object.assign(s, { current: null, isNew: false, text: "", original: "" });
+      } else {
+        s.result = await this._ws("save", { name, text: s.text, dry_run: kind === "check" });
+        if (s.result.ok && kind === "save") Object.assign(s, { current: name, isNew: false, original: s.text });
+      }
+      await this._refresh();
+    } catch (err) {
+      s.result = { ok: false, error: err.code || "unknown", detail: err.message };
+    } finally {
+      s.busy = false;
+      this._render();
+    }
+  }
+
+  async _reload(services) {
+    try {
+      const { reloaded } = await this._ws("reload", { services });
+      this._state.result = { ...this._state.result, reload: [], reloadedNow: reloaded };
+    } catch (err) {
+      this._state.result = { ok: false, error: "unknown", detail: err.message };
+    }
+    this._render();
+  }
+
+  async _history(name) {
+    const { backups } = await this._ws("backups", { name });
+    const t = this.t;
+    const box = this._el("div", { class: "card" }, this._el("h2", { text: this._fmt(t.backups, { name }) }));
+    const preview = this._el("pre");
+    if (!backups.length) box.append(this._el("p", { class: "muted", text: t.noBackup }));
+    const list = this._el("ul");
+    for (const b of backups) {
+      const date = new Date(b.date).toLocaleString(this._hass.language);
+      const row = this._el("li", {},
+        this._el("div", { class: "n", text: `${date} · ${b.reason}` }),
+        this._el("div", { class: "bar" },
+          this._el("button", { class: "flat", text: t.view, onclick: async () => {
+            preview.textContent = (await this._ws("read_backup", { name, backup: b.id })).text;
+          } }),
+          this._el("button", { text: t.restore, onclick: async () => {
+            if (!confirm(this._fmt(t.confirmRestore, { name, date }))) return;
+            dialog.remove();
+            this._state.result = await this._ws("restore", { name, backup: b.id });
+            if (this._state.result.ok) {
+              const { text } = await this._ws("read", { name });
+              Object.assign(this._state, { current: name, isNew: false, text, original: text });
+            }
+            await this._refresh();
+          } }),
+        ),
+      );
+      list.append(row);
+    }
+    box.append(list, preview, this._el("div", { class: "bar" },
+      this._el("button", { class: "flat", text: t.close, onclick: () => dialog.remove() })));
+    const dialog = this._el("div", { class: "dialog" }, box);
+    dialog.addEventListener("click", (ev) => { if (ev.target === dialog) dialog.remove(); });
+    this.shadowRoot.append(dialog);
+  }
+
+  _makeEditor() {
+    const s = this._state;
+    const onChange = (value) => {
+      s.text = value;
+    };
+    if (customElements.get("ha-code-editor")) {
+      const editor = document.createElement("ha-code-editor");
+      editor.mode = "yaml";
+      editor.hass = this._hass;
+      editor.value = s.text;
+      editor.addEventListener("value-changed", (ev) => onChange(ev.detail.value));
+      this._editor = editor;
+      return this._el("div", { class: "editor" }, editor);
+    }
+    const area = this._el("textarea", { spellcheck: "false" });
+    area.value = s.text;
+    area.addEventListener("input", () => onChange(area.value));
+    this._editor = area;
+    return area;
+  }
+
+  _renderResult() {
+    const r = this._state.result;
+    if (!r) return null;
+    const t = this.t;
+    const box = this._el("div");
+    if (r.ok) {
+      const key = { checked: "checked", saved: "saved", restored: "restored", deleted: "deletedOk" }[r.action] || "saved";
+      box.append(this._el("div", { class: "msg ok", text: this._fmt(t[key], { name: r.name }) }));
+    } else {
+      const text = r.rolled_back ? t.rolledBack : t.errors[r.error] || t.errors.unknown;
+      const msg = this._el("div", { class: "msg err", text });
+      if (r.detail) msg.append(this._el("pre", { text: r.detail }));
+      box.append(msg);
+    }
+    if (r.advice && (r.advice.errors || r.advice.warnings)) {
+      const adv = this._el("div", { class: "msg info", text: t.advice });
+      for (const [key, label] of [["errors", t.adviceErrors], ["warnings", t.adviceWarnings]]) {
+        if (r.advice[key]?.length) adv.append(this._el("pre", { text: `${label} :\n- ${r.advice[key].join("\n- ")}` }));
+      }
+      box.append(adv);
+    }
+    if (r.ok && r.action !== "checked") {
+      if (r.reload?.length) {
+        box.append(this._el("div", { class: "msg info" },
+          this._el("span", { text: `${t.reloadHint} ${r.reload.join(", ")} ` }),
+          this._el("button", { class: "flat", text: t.reload, onclick: () => this._reload(r.reload) })));
+      }
+      if (r.reloadedNow?.length) box.append(this._el("div", { class: "msg ok", text: this._fmt(t.reloaded, { list: r.reloadedNow.join(", ") }) }));
+      if (r.restart?.length) box.append(this._el("div", { class: "msg info", text: this._fmt(t.restartHint, { list: r.restart.join(", ") }) }));
+    }
+    return box;
+  }
+
+  _render() {
+    if (!this._root) return;
+    const t = this.t;
+    const s = this._state;
+    const o = s.overview;
+    this._root.innerHTML = "";
+    this._root.append(this._el("div", { class: "top", text: t.title }));
+    const wrap = this._el("div", { class: "wrap" });
+    this._root.append(wrap);
+
+    if (o && !o.enabled) {
+      wrap.style.gridTemplateColumns = "1fr";
+      wrap.append(this._el("div", { class: "card" },
+        this._el("h2", { text: t.disabledTitle }),
+        this._el("p", { text: t.disabledText }),
+        this._el("pre", { text: PACKAGES_SNIPPET }),
+        this._el("p", { class: "muted", text: t.disabledHow })));
+      return;
+    }
+
+    // Liste
+    const side = this._el("div", { class: "card" },
+      this._el("h2", { text: t.packages }),
+      o ? this._el("div", { class: "muted", text: this._fmt(t.folder, { dir: o.directory }) }) : null,
+      this._el("div", { class: "bar" }, this._el("button", { text: t.newPackage, onclick: () => this._new() })));
+    const list = this._el("ul");
+    for (const p of o?.packages || []) {
+      list.append(this._el("li", { class: p.name === s.current ? "active" : "", onclick: () => this._open(p.name) },
+        this._el("div", { class: "n", text: p.name }),
+        p.description ? this._el("div", { class: "d", text: p.description }) : null));
+    }
+    if (o && !o.packages.length) list.append(this._el("p", { class: "muted", text: t.none }));
+    side.append(list);
+    if (o?.deleted?.length) {
+      side.append(this._el("h2", { text: t.deleted }));
+      const del = this._el("ul");
+      for (const name of o.deleted) del.append(this._el("li", { onclick: () => this._history(name) }, this._el("div", { class: "n", text: name })));
+      side.append(del);
+    }
+    wrap.append(side);
+
+    // Éditeur
+    const main = this._el("div", { class: "card" });
+    main.append(this._el("p", { class: "muted", text: t.intro }));
+    if (o?.mode === "include_dir_merge_named") main.append(this._el("div", { class: "msg info", text: t.mergeMode }));
+    if (s.current !== null) {
+      if (s.isNew) {
+        const input = this._el("input", { type: "text", placeholder: t.namePlaceholder, "aria-label": t.name });
+        input.value = s.newName;
+        input.addEventListener("input", () => { s.newName = input.value; });
+        main.append(this._el("div", { class: "muted", text: t.name }), input);
+      } else {
+        main.append(this._el("h2", { text: `${s.current}.yaml` }));
+      }
+      main.append(this._makeEditor());
+      const busy = s.busy;
+      main.append(this._el("div", { class: "bar" },
+        this._el("button", { class: "flat", text: t.check, disabled: busy, onclick: () => this._run("check") }),
+        this._el("button", { text: t.save, disabled: busy, onclick: () => this._run("save") }),
+        s.isNew ? null : this._el("button", { class: "flat", text: t.history, disabled: busy, onclick: () => this._history(s.current) }),
+        s.isNew ? null : this._el("button", { class: "danger", text: t.del, disabled: busy, onclick: () => this._run("delete") })));
+    }
+    const result = this._renderResult();
+    if (result) main.append(result);
+    wrap.append(main);
+  }
+}
+
+customElements.define("package-keeper-panel", PackageKeeperPanel);

@@ -1,0 +1,54 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Package Keeper",
+        "description": "Saves the YAML packages proposed by an AI from a sidebar panel (administrators only), with a configuration check and automatic rollback. Package Keeper only writes to the packages folder: it never modifies configuration.yaml.",
+        "data": {
+          "admin_notify_target": "Admin phone (optional)",
+          "notify_changes": "Notify every change",
+          "backups_kept": "Backups kept per package"
+        },
+        "data_description": {
+          "admin_notify_target": "A notify.mobile_app_* service or a notify entity from the Companion app. Pre-filled with the phone already chosen in another SDR integration (Entity Inventory, Sentinel Report…), if any.",
+          "notify_changes": "Sends a notification to the admin phone each time a package is saved, deleted or restored. An automatic rollback is always notified.",
+          "backups_kept": "Older versions are deleted beyond this number. Backups are stored in /config/.package_keeper/backups."
+        }
+      }
+    },
+    "error": {
+      "invalid_target": "Enter a notify service or entity, e.g. notify.mobile_app_my_phone."
+    },
+    "abort": {
+      "single_instance_allowed": "Package Keeper is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Package Keeper",
+        "description": "Saves the YAML packages proposed by an AI from a sidebar panel (administrators only), with a configuration check and automatic rollback. Package Keeper only writes to the packages folder: it never modifies configuration.yaml.",
+        "data": {
+          "admin_notify_target": "Admin phone (optional)",
+          "notify_changes": "Notify every change",
+          "backups_kept": "Backups kept per package"
+        },
+        "data_description": {
+          "admin_notify_target": "A notify.mobile_app_* service or a notify entity from the Companion app. Pre-filled with the phone already chosen in another SDR integration (Entity Inventory, Sentinel Report…), if any.",
+          "notify_changes": "Sends a notification to the admin phone each time a package is saved, deleted or restored. An automatic rollback is always notified.",
+          "backups_kept": "Older versions are deleted beyond this number. Backups are stored in /config/.package_keeper/backups."
+        }
+      }
+    },
+    "error": {
+      "invalid_target": "Enter a notify service or entity, e.g. notify.mobile_app_my_phone."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "admin_phone": {
+        "name": "Admin phone"
+      }
+    }
+  }
+}

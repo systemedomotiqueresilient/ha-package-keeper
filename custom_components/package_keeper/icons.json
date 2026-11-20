@@ -1,0 +1,9 @@
+{
+  "entity": {
+    "sensor": {
+      "admin_phone": {
+        "default": "mdi:cellphone-message"
+      }
+    }
+  }
+}

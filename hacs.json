@@ -1,0 +1,6 @@
+{
+  "name": "Package Keeper",
+  "homeassistant": "2026.2.0",
+  "zip_release": true,
+  "filename": "package_keeper.zip"
+}

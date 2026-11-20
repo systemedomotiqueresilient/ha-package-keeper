@@ -1,0 +1,54 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Package Keeper",
+        "description": "Enregistre les packages YAML proposés par une IA depuis un panneau latéral (administrateurs uniquement), avec contrôle de la configuration et retour arrière automatique. Package Keeper n'écrit que dans le dossier des packages : il ne modifie jamais configuration.yaml.",
+        "data": {
+          "admin_notify_target": "Téléphone admin (facultatif)",
+          "notify_changes": "Prévenir à chaque modification",
+          "backups_kept": "Sauvegardes conservées par package"
+        },
+        "data_description": {
+          "admin_notify_target": "Service notify.mobile_app_* ou entité notify de l'application Companion. Prérempli avec le téléphone déjà choisi dans une autre intégration SDR (Entity Inventory, Sentinel Report…), s'il y en a un.",
+          "notify_changes": "Envoie une notification au téléphone admin à chaque enregistrement, suppression ou restauration d'un package. Un retour arrière automatique est toujours signalé.",
+          "backups_kept": "Au-delà, les versions les plus anciennes sont supprimées. Les sauvegardes sont rangées dans /config/.package_keeper/backups."
+        }
+      }
+    },
+    "error": {
+      "invalid_target": "Indiquez un service ou une entité notify, par exemple notify.mobile_app_mon_telephone."
+    },
+    "abort": {
+      "single_instance_allowed": "Package Keeper est déjà configuré."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Package Keeper",
+        "description": "Enregistre les packages YAML proposés par une IA depuis un panneau latéral (administrateurs uniquement), avec contrôle de la configuration et retour arrière automatique. Package Keeper n'écrit que dans le dossier des packages : il ne modifie jamais configuration.yaml.",
+        "data": {
+          "admin_notify_target": "Téléphone admin (facultatif)",
+          "notify_changes": "Prévenir à chaque modification",
+          "backups_kept": "Sauvegardes conservées par package"
+        },
+        "data_description": {
+          "admin_notify_target": "Service notify.mobile_app_* ou entité notify de l'application Companion. Prérempli avec le téléphone déjà choisi dans une autre intégration SDR (Entity Inventory, Sentinel Report…), s'il y en a un.",
+          "notify_changes": "Envoie une notification au téléphone admin à chaque enregistrement, suppression ou restauration d'un package. Un retour arrière automatique est toujours signalé.",
+          "backups_kept": "Au-delà, les versions les plus anciennes sont supprimées. Les sauvegardes sont rangées dans /config/.package_keeper/backups."
+        }
+      }
+    },
+    "error": {
+      "invalid_target": "Indiquez un service ou une entité notify, par exemple notify.mobile_app_mon_telephone."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "admin_phone": {
+        "name": "Téléphone admin"
+      }
+    }
+  }
+}

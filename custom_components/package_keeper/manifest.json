@@ -1,0 +1,15 @@
+{
+  "domain": "package_keeper",
+  "name": "Package Keeper",
+  "after_dependencies": ["entity_inventory", "frontend", "panel_custom"],
+  "codeowners": ["@systemedomotiqueresilient"],
+  "config_flow": true,
+  "dependencies": ["http", "websocket_api"],
+  "documentation": "https://github.com/systemedomotiqueresilient/ha-package-keeper",
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/systemedomotiqueresilient/ha-package-keeper/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}
