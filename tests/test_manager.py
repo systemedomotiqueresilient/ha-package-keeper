@@ -162,13 +162,20 @@ async def test_secret_never_resolved_in_output(hass: HomeAssistant, entry, confi
 
 async def test_entity_inventory_advice(hass: HomeAssistant, entry) -> None:
     async def validate(call: ServiceCall) -> dict:
-        assert call.data["yaml"] == GOOD
-        return {"valid": False, "errors": ["entité inconnue : light.x"], "warnings": []}
+        if "light" not in call.data["yaml"]:
+            return {"valid": False, "errors": ["Rien à vérifier"], "warnings": [],
+                    "entities_checked": 0, "actions_checked": 0}
+        return {"valid": False, "errors": ["entité inconnue : light.x"], "warnings": [],
+                "entities_checked": 1, "actions_checked": 0}
 
     hass.services.async_register(
         "entity_inventory", "validate", validate, supports_response=SupportsResponse.ONLY
     )
     outcome = await _manager(entry).async_save("salon", GOOD, dry_run=True)
+    assert outcome.ok and outcome.advice == {}  # rien de cité : pas d'avis parasite
+
+    with_light = GOOD + "automation:\n  - triggers: []\n    actions:\n      - action: light.turn_on\n        target:\n          entity_id: light.x\n"
+    outcome = await _manager(entry).async_save("salon", with_light, dry_run=True)
     assert outcome.ok  # indicatif : n'empêche rien
     assert outcome.advice == {"errors": ["entité inconnue : light.x"]}
     assert (await _manager(entry).async_overview())["entity_inventory"] is True

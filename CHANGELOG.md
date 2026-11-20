@@ -2,6 +2,14 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.1.1] - 2026-11-20
+
+### Corrigé
+- **Plus d'« erreur probable » parasite d'Entity Inventory** pour un package qui ne cite aucune entité ni action, par exemple un simple `input_boolean`. Entity Inventory y répondait « Rien à vérifier », et le panneau l'affichait comme une erreur.
+
+### Ajouté
+- **Catégorie Marketplace** `computers_network.cloud_developer_tools` dans le manifest.
+
 ## [0.1.0] - 2026-11-20
 
 Première version.

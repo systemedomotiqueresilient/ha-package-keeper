@@ -278,6 +278,10 @@ class PackageManager:
             _LOGGER.debug("Avis d'Entity Inventory indisponible : %s", err)
             return {}
         result = result or {}
+        if not result.get("entities_checked") and not result.get("actions_checked"):
+            # Package qui ne cite aucune entité ni action (ex. un input_boolean) :
+            # Entity Inventory répond « rien à vérifier », ce n'est pas une erreur.
+            return {}
         return {
             key: [str(item) for item in result.get(key) or []]
             for key in ("errors", "warnings")
