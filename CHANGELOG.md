@@ -2,6 +2,14 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.3.4] - 2026-11-21
+
+### Ajouté
+- **Version affichée** à côté du titre du panneau (« Package Keeper v0.3.4 »). L'entrée de la barre latérale de HA ne change pas.
+
+### Corrigé
+- **Rechargement automatique après une mise à jour** : en 0.3.2, la version n'était vérifiée qu'à l'ouverture du panneau ou après une action. Elle l'est maintenant aussi quand Home Assistant se reconnecte après son redémarrage et quand l'onglet redevient visible.
+
 ## [0.3.3] - 2026-11-21
 
 ### Corrigé

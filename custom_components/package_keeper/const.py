@@ -3,7 +3,7 @@
 from typing import Final
 
 DOMAIN: Final = "package_keeper"
-VERSION: Final = "0.3.3"  # identique à manifest.json et au fichier VERSION
+VERSION: Final = "0.3.4"  # identique à manifest.json et au fichier VERSION
 
 # Panneau latéral
 PANEL_URL_PATH: Final = "package-keeper"

@@ -3,7 +3,7 @@
 // inséré avec textContent, jamais en HTML.
 
 // Doit être identique à VERSION (const.py) : un test le vérifie
-const PANEL_VERSION = "0.3.3";
+const PANEL_VERSION = "0.3.4";
 
 const TEXTS = {
   fr: {
@@ -165,6 +165,7 @@ const STYLE = `
   .info { background: var(--secondary-background-color); }
   .warn { background: rgba(255,152,0,.18); border-left: 4px solid var(--warning-color, #ff9800); }
   .search { margin-bottom: 4px; }
+  .top .version { font-size: 14px; opacity: .7; }
   .outdated { margin: 12px 16px 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .toolbar { position: sticky; top: -16px; z-index: 2; background: var(--card-background-color); margin: 0 -16px; padding: 4px 16px 8px; border-bottom: 1px solid var(--divider-color); }
   .toolbar .bar { margin: 8px 0 4px; }
@@ -227,6 +228,12 @@ class PackageKeeperPanel extends HTMLElement {
     this.shadowRoot.append(this._el("style", { text: STYLE }));
     this._root = this._el("div");
     this.shadowRoot.append(this._root);
+    // Une mise à jour s'accompagne d'un redémarrage de HA : à la reconnexion,
+    // et quand l'onglet redevient visible, on revérifie la version.
+    this._hass.connection?.addEventListener?.("ready", () => this._refresh());
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && this.isConnected) this._refresh();
+    });
     await this._refresh();
   }
 
@@ -503,7 +510,9 @@ class PackageKeeperPanel extends HTMLElement {
       if (pageScroll) this.scrollTop = pageScroll;
     });
     this._root.innerHTML = "";
-    this._root.append(this._el("div", { class: "top", text: t.title }));
+    this._root.append(this._el("div", { class: "top" },
+      this._el("span", { text: t.title }),
+      this._el("span", { class: "version", text: `v${PANEL_VERSION}` })));
     if (s.outdated) {
       this._root.append(this._el("div", { class: "msg warn outdated" },
         this._el("span", { text: `${this._fmt(t.outdated, { old: PANEL_VERSION, new: s.outdated })} ` }),
