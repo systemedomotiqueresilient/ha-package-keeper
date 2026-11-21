@@ -2,6 +2,15 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.3.2] - 2026-11-21
+
+### Corrigé
+- **Panneau périmé après une mise à jour.** Jusqu'ici, le navigateur gardait l'ancien panneau en mémoire tant qu'on ne rechargeait pas la page à la main. Le panneau compare maintenant sa version à celle de l'intégration (`overview` renvoie `version`) :
+  - sans modification en cours, il recharge la page une fois, tout seul ;
+  - sinon, ou si le cache résiste, il affiche un bandeau « Package Keeper a été mis à jour », avec un bouton « Recharger la page ».
+
+  Ce mécanisme ne protège pas encore le passage de la 0.3.1 à la 0.3.2, puisque l'ancien panneau ne contient pas ce contrôle. Il servira pour toutes les mises à jour suivantes.
+
 ## [0.3.1] - 2026-11-21
 
 ### Corrigé

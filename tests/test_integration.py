@@ -41,6 +41,7 @@ async def test_ws_full_cycle(hass: HomeAssistant, entry, hass_ws_client) -> None
 
     reply = await ws(type=f"{DOMAIN}/overview")
     assert reply["success"] and reply["result"]["enabled"] and reply["result"]["packages"] == []
+    assert reply["result"]["version"] == VERSION
 
     reply = await ws(type=f"{DOMAIN}/save", name="test_pk", text=GOOD, dry_run=True)
     assert reply["result"]["ok"] and reply["result"]["action"] == "checked"
@@ -216,3 +217,5 @@ def test_module_copy_and_versions() -> None:
     )
     manifest = json.loads((root / "custom_components" / DOMAIN / "manifest.json").read_text())
     assert manifest["version"] == VERSION == (root / "VERSION").read_text().strip()
+    js = (root / "custom_components" / DOMAIN / "frontend" / "package-keeper-panel.js").read_text()
+    assert f'const PANEL_VERSION = "{VERSION}";' in js  # sinon le panneau se croit périmé

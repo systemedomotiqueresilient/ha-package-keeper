@@ -24,6 +24,7 @@ from .const import (
     DEFAULT_BACKUPS_KEPT,
     DEFAULT_NOTIFY_CHANGES,
     DOMAIN,
+    VERSION,
 )
 from .store import PackageError, PackagesSetup
 
@@ -105,6 +106,7 @@ class PackageManager:
             "packages": packages,
             "deleted": deleted,
             "entity_inventory": self.hass.services.has_service("entity_inventory", "validate"),
+            "version": VERSION,  # le panneau compare avec la sienne (mise à jour sans rechargement)
         }
 
     async def async_read(self, name: str) -> str:

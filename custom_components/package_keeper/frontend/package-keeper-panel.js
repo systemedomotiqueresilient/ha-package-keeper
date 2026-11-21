@@ -2,6 +2,9 @@
 // JavaScript sans dépendance ni compilation. Tout texte venant d'un fichier est
 // inséré avec textContent, jamais en HTML.
 
+// Doit être identique à VERSION (const.py) : un test le vérifie
+const PANEL_VERSION = "0.3.2";
+
 const TEXTS = {
   fr: {
     title: "Package Keeper",
@@ -46,6 +49,8 @@ const TEXTS = {
     backups: "Versions sauvegardées de « {name} »",
     noBackup: "Aucune sauvegarde.",
     unsaved: "Modifications non enregistrées : les abandonner ?",
+    outdated: "Package Keeper a été mis à jour ({old} → {new}) : rechargez la page pour utiliser la nouvelle version du panneau.",
+    reloadPage: "Recharger la page",
     disabledTitle: "Les packages ne sont pas activés",
     disabledText: "Package Keeper ne modifie jamais configuration.yaml. Ajoutez vous-même ces lignes au début de /config/configuration.yaml, puis redémarrez Home Assistant :",
     disabledHow: "Pour éditer configuration.yaml : installez l'application complémentaire Samba share (Paramètres → Modules complémentaires) si ce n'est pas déjà fait, ouvrez le partage « config » depuis votre ordinateur, puis modifiez le fichier avec un éditeur de texte comme Notepad++ (en UTF-8, sans tabulations). Faites une sauvegarde avant.",
@@ -108,6 +113,8 @@ const TEXTS = {
     backups: "Saved versions of “{name}”",
     noBackup: "No backup.",
     unsaved: "Unsaved changes: discard them?",
+    outdated: "Package Keeper was updated ({old} → {new}): reload the page to use the new version of the panel.",
+    reloadPage: "Reload the page",
     disabledTitle: "Packages are not enabled",
     disabledText: "Package Keeper never modifies configuration.yaml. Add these lines yourself at the top of /config/configuration.yaml, then restart Home Assistant:",
     disabledHow: "To edit configuration.yaml: install the Samba share add-on (Settings → Add-ons) if not done yet, open the “config” share from your computer, then edit the file with a text editor such as Notepad++ (UTF-8, no tabs). Make a backup first.",
@@ -158,6 +165,7 @@ const STYLE = `
   .info { background: var(--secondary-background-color); }
   .warn { background: rgba(255,152,0,.18); border-left: 4px solid var(--warning-color, #ff9800); }
   .search { margin-bottom: 4px; }
+  .outdated { margin: 12px 16px 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .toolbar { position: sticky; top: -16px; z-index: 2; background: var(--card-background-color); margin: 0 -16px; padding: 4px 16px 8px; border-bottom: 1px solid var(--divider-color); }
   .toolbar .bar { margin: 8px 0 4px; }
   .results { max-height: 40vh; overflow: auto; }
@@ -225,10 +233,34 @@ class PackageKeeperPanel extends HTMLElement {
   async _refresh() {
     try {
       this._state.overview = await this._ws("overview");
+      this._checkVersion(this._state.overview.version);
     } catch (err) {
       this._state.result = { ok: false, error: "unknown", detail: err.message };
     }
     this._render();
+  }
+
+  // Après une mise à jour, le navigateur garde l'ancien panneau en mémoire tant
+  // que la page n'est pas rechargée. Sans modification en cours, on recharge une
+  // fois tout seul ; sinon (ou si le cache résiste), on affiche un bandeau.
+  _checkVersion(serverVersion) {
+    if (!serverVersion || serverVersion === PANEL_VERSION) {
+      this._state.outdated = null;
+      return;
+    }
+    const key = `package-keeper-reloaded-${serverVersion}`;
+    let alreadyTried = true;
+    try {
+      alreadyTried = sessionStorage.getItem(key) === "1";
+      if (!alreadyTried && !this._dirty()) sessionStorage.setItem(key, "1");
+    } catch (_err) {
+      alreadyTried = true; // stockage indisponible : pas de rechargement automatique
+    }
+    if (!alreadyTried && !this._dirty()) {
+      window.location.reload();
+      return;
+    }
+    this._state.outdated = serverVersion;
   }
 
   _dirty() {
@@ -472,6 +504,11 @@ class PackageKeeperPanel extends HTMLElement {
     });
     this._root.innerHTML = "";
     this._root.append(this._el("div", { class: "top", text: t.title }));
+    if (s.outdated) {
+      this._root.append(this._el("div", { class: "msg warn outdated" },
+        this._el("span", { text: `${this._fmt(t.outdated, { old: PANEL_VERSION, new: s.outdated })} ` }),
+        this._el("button", { text: t.reloadPage, onclick: () => window.location.reload() })));
+    }
     const wrap = this._el("div", { class: "wrap" });
     this._root.append(wrap);
 

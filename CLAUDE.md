@@ -21,7 +21,7 @@ Intégration Home Assistant (domaine `package_keeper`). Elle enregistre les pack
 - **Synchronisation entre agents** : carnet Evernote dédié (00 : le protocole, 01 : la spécification, 02 : le journal, où l'on ajoute ses entrées à la fin).
 
 ## Versions
-La version doit être identique dans `manifest.json`, `const.py` (`VERSION`) et `VERSION`. Un test le vérifie. Il faut aussi tenir à jour `CHANGELOG.md` et `ROADMAP.md`.
+La version doit être identique dans `manifest.json`, `const.py` (`VERSION`), `VERSION` et `PANEL_VERSION` en tête de `frontend/package-keeper-panel.js` (sinon le panneau se croit périmé et recharge la page). Un test le vérifie. Il faut aussi tenir à jour `CHANGELOG.md` et `ROADMAP.md`.
 
 ## Vérifications
 ```bash
