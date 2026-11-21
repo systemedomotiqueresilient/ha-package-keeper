@@ -2,6 +2,12 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.3.3] - 2026-11-21
+
+### Corrigé
+- **Le nom de fichier proposé en exemple suit maintenant la convention d'Entity Inventory**, c'est-à-dire la pièce d'abord, puis la fonction : `salon_derivees`. L'ancien exemple, `derivee_salon`, faisait l'inverse. Les README rappellent cette convention.
+- C'est aussi la première mise à jour à profiter du rechargement automatique du panneau ajouté en 0.3.2.
+
 ## [0.3.2] - 2026-11-21
 
 ### Corrigé

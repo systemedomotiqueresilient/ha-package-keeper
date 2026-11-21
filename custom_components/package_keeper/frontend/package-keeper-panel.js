@@ -3,7 +3,7 @@
 // inséré avec textContent, jamais en HTML.
 
 // Doit être identique à VERSION (const.py) : un test le vérifie
-const PANEL_VERSION = "0.3.2";
+const PANEL_VERSION = "0.3.3";
 
 const TEXTS = {
   fr: {
@@ -14,7 +14,7 @@ const TEXTS = {
     deleted: "Supprimés (restaurables)",
     none: "Aucun package pour l'instant.",
     name: "Nom du fichier (lettres minuscules, chiffres, _)",
-    namePlaceholder: "ex. derivee_salon",
+    namePlaceholder: "ex. salon_derivees (la pièce, puis la fonction)",
     check: "Vérifier",
     save: "Enregistrer",
     history: "Historique",
@@ -78,7 +78,7 @@ const TEXTS = {
     deleted: "Deleted (restorable)",
     none: "No package yet.",
     name: "File name (lowercase letters, digits, _)",
-    namePlaceholder: "e.g. living_room_derivative",
+    namePlaceholder: "e.g. living_room_derivatives (area first, then purpose)",
     check: "Check",
     save: "Save",
     history: "History",

@@ -48,7 +48,7 @@ Avec HACS (dépôt personnalisé) : ajoutez `https://github.com/systemedomotique
 
 Le panneau **Package Keeper** apparaît dans la barre latérale, pour les administrateurs uniquement.
 
-1. **Nouveau package** : donnez un nom de fichier (lettres minuscules, chiffres, `_`), puis collez le YAML proposé par l'IA.
+1. **Nouveau package** : donnez un nom de fichier (lettres minuscules, chiffres, `_`), puis collez le YAML proposé par l'IA. Suivez la convention d'Entity Inventory : **la pièce d'abord, puis la fonction** (`salon_derivees`, `appartement_temperature_moyenne`), et une première ligne de commentaire qui décrit le package.
 2. **Vérifier** : le YAML est lu avec le chargeur de Home Assistant, avec les mêmes `!secret` et `!include`. Si **Entity Inventory** est installé, son action `validate` donne aussi son avis sur les entités et les actions. Cet avis est indicatif : une entité que le package crée lui-même n'existe pas encore et peut donc être signalée. À ce stade, rien n'est encore écrit.
 3. **Enregistrer** : Package Keeper sauvegarde l'ancienne version, écrit le fichier de façon atomique, puis lance le contrôle de configuration, le même que le bouton *Vérifier la configuration*.
    - **Si un nouveau problème apparaît** (erreur YAML, intégration mal configurée, entité définie deux fois…), **la modification est annulée** et le problème est affiché.

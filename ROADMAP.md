@@ -11,6 +11,7 @@
   - recherche dans la liste et menu compact.
 
 ## Pistes
+- **Renommer un package** en une seule opération, pour suivre la convention de nommage sans toucher aux entités. Aujourd'hui, enregistrer sous un nouveau nom puis supprimer l'ancien est refusé, à juste titre, car les unique_id existent déjà dans l'ancien fichier. Le renommage ferait un seul déplacement, avec sauvegarde, contrôle de configuration et retour arrière.
 - **Actions inconnues** : vérifier, sans bloquer, que les actions appelées existent. Il faut tenir compte de celles que le package crée lui-même, comme ses scripts.
 - **Comparer deux versions** : afficher les différences avant de restaurer une sauvegarde ou d'enregistrer.
 - **Détecter les packages cassés** : signaler dans la liste ceux qui citent des entités qui n'existent plus, comme le fait la section `packages` d'Entity Inventory.

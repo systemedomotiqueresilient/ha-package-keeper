@@ -48,7 +48,7 @@ With HACS (custom repository): add `https://github.com/systemedomotiqueresilient
 
 The **Package Keeper** panel appears in the sidebar, for administrators only.
 
-1. **New package**: give a file name (lowercase letters, digits, `_`), then paste the YAML proposed by the AI.
+1. **New package**: give a file name (lowercase letters, digits, `_`), then paste the YAML proposed by the AI. Follow Entity Inventory's convention: **area first, then purpose** (`living_room_derivatives`, `flat_average_temperature`), and a first comment line describing the package.
 2. **Check**: the YAML is read with Home Assistant's loader, using the same `!secret` and `!include`. If **Entity Inventory** is installed, its `validate` action also gives its advice on entities and actions. That advice is indicative: an entity the package creates itself does not exist yet and may be reported. Nothing is written at this stage.
 3. **Save**: Package Keeper backs up the previous version, writes the file atomically, then runs the configuration check, the same as the *Check configuration* button.
    - **If a new problem appears** (YAML error, misconfigured integration, entity defined twice…), **the change is cancelled** and the problem is shown.
