@@ -158,6 +158,9 @@ const STYLE = `
   .info { background: var(--secondary-background-color); }
   .warn { background: rgba(255,152,0,.18); border-left: 4px solid var(--warning-color, #ff9800); }
   .search { margin-bottom: 4px; }
+  .toolbar { position: sticky; top: -16px; z-index: 2; background: var(--card-background-color); margin: 0 -16px; padding: 4px 16px 8px; border-bottom: 1px solid var(--divider-color); }
+  .toolbar .bar { margin: 8px 0 4px; }
+  .results { max-height: 40vh; overflow: auto; }
   .folder { font-size: 12px; font-weight: 500; color: var(--secondary-text-color); margin: 10px 0 2px; text-transform: uppercase; }
   select { font: inherit; width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
   pre { white-space: pre-wrap; font-family: var(--code-font-family, monospace); font-size: 12px; margin: 6px 0 0; }
@@ -458,6 +461,15 @@ class PackageKeeperPanel extends HTMLElement {
     const t = this.t;
     const s = this._state;
     const o = s.overview;
+    // Un nouveau rendu ne doit pas ramener l'utilisateur en haut de la page
+    const scrolls = [...this._root.querySelectorAll(".card")].map((card) => card.scrollTop);
+    const pageScroll = this.scrollTop;
+    queueMicrotask(() => {
+      [...this._root.querySelectorAll(".card")].forEach((card, index) => {
+        if (scrolls[index]) card.scrollTop = scrolls[index];
+      });
+      if (pageScroll) this.scrollTop = pageScroll;
+    });
     this._root.innerHTML = "";
     this._root.append(this._el("div", { class: "top", text: t.title }));
     const wrap = this._el("div", { class: "wrap" });
@@ -500,16 +512,22 @@ class PackageKeeperPanel extends HTMLElement {
       } else {
         main.append(this._el("h2", { text: `${s.current}.yaml` }));
       }
-      main.append(this._makeEditor());
+      // Boutons et résultats dans une barre collante, au-dessus de l'éditeur :
+      // toujours visibles, même dans un long package
       const busy = s.busy;
-      main.append(this._el("div", { class: "bar" },
-        this._el("button", { class: "flat", text: t.check, disabled: busy, onclick: () => this._run("check") }),
-        this._el("button", { text: t.save, disabled: busy, onclick: () => this._run("save") }),
-        s.isNew ? null : this._el("button", { class: "flat", text: t.history, disabled: busy, onclick: () => this._history(s.current) }),
-        s.isNew ? null : this._el("button", { class: "danger", text: t.del, disabled: busy, onclick: () => this._run("delete") })));
+      const toolbar = this._el("div", { class: "toolbar" },
+        this._el("div", { class: "bar" },
+          this._el("button", { class: "flat", text: t.check, disabled: busy, onclick: () => this._run("check") }),
+          this._el("button", { text: t.save, disabled: busy, onclick: () => this._run("save") }),
+          s.isNew ? null : this._el("button", { class: "flat", text: t.history, disabled: busy, onclick: () => this._history(s.current) }),
+          s.isNew ? null : this._el("button", { class: "danger", text: t.del, disabled: busy, onclick: () => this._run("delete") })));
+      const result = this._renderResult();
+      if (result) toolbar.append(this._el("div", { class: "results" }, result));
+      main.append(toolbar, this._makeEditor());
+    } else {
+      const result = this._renderResult();
+      if (result) main.append(result);
     }
-    const result = this._renderResult();
-    if (result) main.append(result);
     wrap.append(main);
   }
 }

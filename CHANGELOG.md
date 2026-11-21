@@ -2,6 +2,13 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.3.1] - 2026-11-21
+
+### Corrigé
+- **Panneau : plus besoin de redescendre en bas d'un long package.**
+  - Les boutons (Vérifier, Enregistrer, Historique, Supprimer) et les résultats sont maintenant dans une barre collante, au-dessus de l'éditeur. Elle reste visible quand on fait défiler.
+  - Un clic ne ramène plus en haut : la position de défilement est conservée.
+
 ## [0.3.0] - 2026-11-21
 
 Tirée du premier test réel, sur le package `system_complet_tout_en_un` de Mathieu.

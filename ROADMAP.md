@@ -3,6 +3,7 @@
 ## Fait
 - **0.1.0** : panneau réservé aux administrateurs, enregistrement contrôlé avec retour arrière automatique, historique et restauration, suppression restaurable, avis d'Entity Inventory, téléphone admin.
 - **0.1.1** : l'avis d'Entity Inventory ne s'affiche plus pour un package qui ne cite aucune entité.
+- **0.3.1** : boutons et résultats dans une barre collante au-dessus de l'éditeur, position de défilement conservée.
 - **0.3.0** : rechargement ciblé sur les domaines modifiés, entités retirées annoncées, entités orphelines signalées après rechargement.
 - **0.2.0** :
   - templates, automatisations, scripts et `unique_id` en double contrôlés avant l'écriture ;
