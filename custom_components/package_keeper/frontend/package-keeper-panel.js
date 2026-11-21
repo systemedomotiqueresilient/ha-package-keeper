@@ -36,6 +36,10 @@ const TEXTS = {
     reloadHint: "À recharger pour prendre effet :",
     restartHint: "Redémarrage de Home Assistant nécessaire pour : {list}. Paramètres → Système → Redémarrer (ou Deferred Restart si vous l'utilisez).",
     reloaded: "Rechargé : {list}.",
+    removedCheck: "Si vous enregistrez, ces entités ne seront plus fournies : {list}",
+    removedDone: "Ces entités ne sont plus fournies par le package : {list}",
+    orphans: "Toujours présentes dans Home Assistant, marquées « non fournies » : {list}. Vous pouvez les supprimer :",
+    orphansLink: "Paramètres → Entités",
     advice: "À vérifier avant d'aller plus loin — avis d'Entity Inventory (une entité créée par ce package lui-même n'existe pas encore et peut être signalée à tort)",
     adviceErrors: "Erreurs probables",
     adviceWarnings: "Avertissements",
@@ -94,6 +98,10 @@ const TEXTS = {
     reloadHint: "Reload to apply:",
     restartHint: "Home Assistant restart required for: {list}. Settings → System → Restart (or Deferred Restart if you use it).",
     reloaded: "Reloaded: {list}.",
+    removedCheck: "If you save, these entities will no longer be provided: {list}",
+    removedDone: "These entities are no longer provided by the package: {list}",
+    orphans: "Still present in Home Assistant, marked “not provided”: {list}. You can remove them:",
+    orphansLink: "Settings → Entities",
     advice: "Check before going further — Entity Inventory advice (an entity created by this package itself does not exist yet and may be wrongly reported)",
     adviceErrors: "Likely errors",
     adviceWarnings: "Warnings",
@@ -267,8 +275,9 @@ class PackageKeeperPanel extends HTMLElement {
 
   async _reload(services) {
     try {
-      const { reloaded } = await this._ws("reload", { services });
-      this._state.result = { ...this._state.result, reload: [], reloadedNow: reloaded };
+      const entities = this._state.result?.removed || [];
+      const { reloaded, orphans } = await this._ws("reload", { services, entities });
+      this._state.result = { ...this._state.result, reload: [], reloadedNow: reloaded, orphans };
     } catch (err) {
       this._state.result = { ok: false, error: "unknown", detail: err.message };
     }
@@ -352,6 +361,15 @@ class PackageKeeperPanel extends HTMLElement {
       const msg = this._el("div", { class: "msg err", text });
       if (r.detail) msg.append(this._el("pre", { text: r.detail }));
       box.append(msg);
+    }
+    if (r.ok && r.removed?.length) {
+      const key = r.action === "checked" ? "removedCheck" : "removedDone";
+      box.append(this._el("div", { class: "msg info", text: this._fmt(t[key], { list: r.removed.join(", ") }) }));
+    }
+    if (r.orphans?.length) {
+      box.append(this._el("div", { class: "msg warn" },
+        this._el("span", { text: `${this._fmt(t.orphans, { list: r.orphans.join(", ") })} ` }),
+        this._el("a", { href: "/config/entities", text: t.orphansLink })));
     }
     if (r.ok && r.action !== "checked") {
       if (r.reload?.length) {

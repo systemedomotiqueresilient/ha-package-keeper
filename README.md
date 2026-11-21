@@ -54,7 +54,7 @@ The **Package Keeper** panel appears in the sidebar, for administrators only.
    - **If a new problem appears** (YAML error, misconfigured integration, entity defined twice…), **the change is cancelled** and the problem is shown.
    - A problem that already existed before your change does not block saving: otherwise a configuration already broken elsewhere could never be fixed.
    - **Before writing anything**, Package Keeper checks what Home Assistant only checks at startup: Jinja templates, automations and scripts, and `unique_id` values already used by another package.
-4. **Apply**:
+4. **Apply**: only the domains that actually changed are offered. For example, removing an automation only offers `automation.reload`. The panel also says which entities will no longer be provided and, after reloading, which ones remain marked “not provided” in *Settings → Entities*, where you can remove them.
    - for domains that can be reloaded (automation, script, template, input_*…), a **Reload now** button is enough;
    - for the others (`sensor` with `platform: derivative`, `climate_template`…), the panel says a **restart** is needed. Do it from *Settings → System → Restart*, or with Deferred Restart if you use it.
 5. **History**: each package keeps its previous versions, which you can view and restore.

@@ -7,6 +7,7 @@ from pathlib import Path
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 
 from custom_components.package_keeper.admin_phone import CONF_ADMIN_NOTIFY_TARGET
@@ -290,3 +291,107 @@ async def test_merge_mode_body(hass: HomeAssistant, entry, config_dir: Path) -> 
     outcome = await _manager(entry).async_save("salon", text)
     assert outcome.ok, outcome
     assert outcome.restart == ["input_boolean"] or outcome.reload == ["input_boolean.reload"]
+
+
+# --- 0.3.0 : rechargement ciblé, entités retirées et orphelines --------------
+
+PACK = """\
+template:
+  - sensor:
+      - name: Uptime
+        unique_id: pk_uptime
+        state: "1"
+script:
+  pk_notifier:
+    sequence: []
+automation:
+  - id: pk_cpu
+    alias: CPU
+    triggers: []
+    actions: []
+  - id: pk_disque
+    alias: Disque
+    triggers: []
+    actions: []
+"""
+
+
+def _reload_services(hass: HomeAssistant) -> list[str]:
+    called: list[str] = []
+    for domain in ("automation", "script", "template", "derivative"):
+        hass.services.async_register(domain, "reload", lambda c, d=domain: called.append(d))
+    return called
+
+
+async def test_targeted_reload_and_removed(hass: HomeAssistant, entry) -> None:
+    _reload_services(hass)
+    registry = er.async_get(hass)
+    registry.async_get_or_create(
+        "automation", "automation", "pk_disque", suggested_object_id="system_disque"
+    )
+    registry.async_get_or_create("sensor", "template", "pk_uptime", suggested_object_id="up")
+    manager = _manager(entry)
+
+    first = await manager.async_save("system", PACK)
+    assert first.reload == ["automation.reload", "script.reload", "template.reload"]
+    assert first.removed == []
+
+    # Seule une automatisation retirée : seul automation.reload est proposé
+    v2 = PACK.replace(
+        "  - id: pk_disque\n    alias: Disque\n    triggers: []\n    actions: []\n", ""
+    )
+    checked = await manager.async_save("system", v2, dry_run=True)
+    assert checked.reload == ["automation.reload"] and checked.restart == []
+    assert checked.removed == ["automation.system_disque"]
+    saved = await manager.async_save("system", v2)
+    assert saved.reload == ["automation.reload"]
+    assert saved.removed == ["automation.system_disque"]
+
+    # Un domaine entier retiré se recharge aussi
+    v3 = v2.split("script:")[0]
+    outcome = await manager.async_save("system", v3, dry_run=True)
+    assert outcome.reload == ["automation.reload", "script.reload"]
+
+    # Rien de changé : rien à recharger
+    same = await manager.async_save("system", v2 + "# commentaire\n", dry_run=True)
+    assert same.reload == [] and same.restart == []
+
+
+async def test_removed_platform_counts(hass: HomeAssistant, entry) -> None:
+    _reload_services(hass)
+    manager = _manager(entry)
+    text = "sensor:\n  - platform: derivative\n    source: sensor.x\n    unique_id: d1\n"
+    assert (await manager.async_save("pente", text)).ok
+    outcome = await manager.async_save("pente", "input_boolean:\n  b:\n    name: B\n", dry_run=True)
+    assert "derivative.reload" in outcome.reload  # l'ancienne plateforme doit être déchargée
+
+
+async def test_orphans_after_reload(hass: HomeAssistant, entry, hass_ws_client) -> None:
+    registry = er.async_get(hass)
+    gone = registry.async_get_or_create(
+        "automation", "automation", "pk_x", suggested_object_id="ancienne"
+    ).entity_id
+    alive = registry.async_get_or_create(
+        "automation", "automation", "pk_y", suggested_object_id="vivante"
+    ).entity_id
+    hass.states.async_set(gone, "unavailable", {"restored": True})
+    hass.states.async_set(alive, "on")
+    hass.services.async_register("automation", "reload", lambda c: None)
+
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id(
+        {
+            "type": "package_keeper/reload",
+            "services": ["automation.reload"],
+            "entities": [gone, alive, "automation.inconnue"],
+        }
+    )
+    reply = await client.receive_json()
+    assert reply["result"] == {"reloaded": ["automation.reload"], "orphans": [gone]}
+
+
+async def test_delete_lists_removed(hass: HomeAssistant, entry) -> None:
+    manager = _manager(entry)
+    assert (await manager.async_save("salon", GOOD)).ok
+    outcome = await manager.async_delete("salon")
+    assert outcome.removed == ["input_boolean.fenetre_salon_virtuelle"]

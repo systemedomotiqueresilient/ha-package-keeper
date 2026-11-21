@@ -2,6 +2,19 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.3.0] - 2026-11-21
+
+Tirée du premier test réel, sur le package `system_complet_tout_en_un` de Mathieu.
+
+### Ajouté
+- **Rechargement ciblé.** Seuls les domaines réellement modifiés (ajoutés, changés ou retirés) sont proposés au rechargement ou au redémarrage. Les commentaires et la mise en forme ne comptent pas.
+  - Retirer une automatisation propose seulement `automation.reload`, au lieu des trois domaines du package.
+  - Changer une consigne `input_number` dans un package qui contient aussi un `climate_template` propose `input_number.reload` au lieu d'un redémarrage.
+  - Une plateforme retirée (par exemple `derivative`) est rechargée pour que ses entités disparaissent.
+- **Entités retirées.** Le panneau dit, dès la vérification, quelles entités ne seront plus fournies. Après une suppression, il liste toutes celles du package.
+- **Entités orphelines.** Après « Recharger maintenant », les entités retirées que Home Assistant garde marquées « non fournies » (`restored: true`) sont signalées, avec un lien vers *Paramètres → Entités*. Package Keeper ne les supprime pas lui-même.
+- **API.** `package_keeper/reload` accepte `entities` et renvoie `orphans`. `save`, `delete` et `restore` renvoient `removed`.
+
 ## [0.2.0] - 2026-11-20
 
 Testée sur 41 packages réels. Les quatre erreurs que le contrôle de configuration de Home Assistant laissait passer sont maintenant bloquées, ou signalées clairement pour la dernière.

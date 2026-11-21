@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -142,12 +143,19 @@ async def ws_dependents(manager: PackageManager, msg: dict[str, Any]) -> dict:
 
 @websocket_api.require_admin
 @websocket_api.websocket_command(
-    {vol.Required("type"): f"{DOMAIN}/reload", vol.Required("services"): [str]}
+    {
+        vol.Required("type"): f"{DOMAIN}/reload",
+        vol.Required("services"): [str],
+        # Entités retirées par la modification : on dit lesquelles ne sont plus fournies
+        vol.Optional("entities", default=[]): [str],
+    }
 )
 @websocket_api.async_response
 @_handler
 async def ws_reload(manager: PackageManager, msg: dict[str, Any]) -> dict:
-    return {"reloaded": await manager.async_reload(msg["services"])}
+    reloaded = await manager.async_reload(msg["services"])
+    await asyncio.sleep(0)  # laisse les entités retirées passer « non fournies »
+    return {"reloaded": reloaded, "orphans": manager.async_orphans(msg["entities"])}
 
 
 @callback

@@ -11,9 +11,9 @@ import re
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import check_config
+from homeassistant.helpers import check_config, entity_registry as er
 from homeassistant.util.yaml.loader import Secrets, load_yaml_dict
 
 from . import deep_checks, store
@@ -68,6 +68,7 @@ class Outcome:
     backup: str | None = None
     reload: list[str] = field(default_factory=list)
     restart: list[str] = field(default_factory=list)
+    removed: list[str] = field(default_factory=list)  # entités qui ne seront plus fournies
 
     def as_dict(self) -> dict[str, Any]:
         return {k: v for k, v in self.__dict__.items() if v not in (None, [], {})} | {
@@ -149,7 +150,13 @@ class PackageManager:
                 return outcome
 
             outcome.advice = await self._advice(text)
-            outcome.reload, outcome.restart = self._reload_plan(body)
+            old_body = await self._current_body(setup, name)
+            outcome.reload, outcome.restart = self._reload_plan(body, old_body)
+            if old_body is not None:
+                outcome.removed = sorted(
+                    deep_checks.defined_entities(self.hass, old_body)
+                    - deep_checks.defined_entities(self.hass, body)
+                )
             if dry_run:
                 await self._run(store.discard, tmp)
                 outcome.ok = True
@@ -183,8 +190,9 @@ class PackageManager:
         async with self._lock:
             try:
                 path = await self._run(store.package_path, setup, name)
-                content = await self._run(_load, path, self.config_dir)
-                outcome.reload, outcome.restart = self._reload_plan(_body(content, setup.mode))
+                body = _body(await self._run(_load, path, self.config_dir), setup.mode)
+                outcome.reload, outcome.restart = self._reload_plan(body)
+                outcome.removed = sorted(deep_checks.defined_entities(self.hass, body))
             except PackageError:
                 pass  # un package illisible se supprime quand même
             before = await _config_problems(self.hass)
@@ -219,6 +227,23 @@ class PackageManager:
             return {}
         _, texts = await self._run(_load_others, setup, name, self.config_dir)
         return deep_checks.citing(defined, texts)
+
+    @callback
+    def async_orphans(self, entity_ids: list[str]) -> list[str]:
+        """Parmi ces entités, celles que plus rien ne fournit (« non fournie » dans HA).
+
+        Home Assistant les garde dans le registre, indisponibles, avec l'attribut
+        restored: true. On les signale ; seul l'occupant les supprime.
+        """
+        registry = er.async_get(self.hass)
+        orphans = []
+        for entity_id in entity_ids:
+            state = self.hass.states.get(entity_id)
+            if registry.async_get(entity_id) is None:
+                continue  # déjà supprimée du registre
+            if state is None or state.attributes.get("restored"):
+                orphans.append(entity_id)
+        return sorted(orphans)
 
     async def async_reload(self, services: list[str]) -> list[str]:
         """Appelle les actions de rechargement proposées ; renvoie celles appelées."""
@@ -321,8 +346,30 @@ class PackageManager:
             if result.get(key)
         }
 
-    def _reload_plan(self, content: dict[str, Any]) -> tuple[list[str], list[str]]:
-        """(actions de rechargement possibles, domaines qui exigent un redémarrage)."""
+    async def _current_body(self, setup: PackagesSetup, name: str) -> dict[str, Any] | None:
+        """Contenu actuel du package (avant modification), ou None s'il n'existe pas."""
+        path = await self._run(store.package_path, setup, name)
+        if not await self._run(path.is_file):
+            return None
+        try:
+            return _body(await self._run(_load, path, self.config_dir), setup.mode)
+        except PackageError:
+            return None  # illisible : on retombe sur le plan complet
+
+    def _reload_plan(
+        self, content: dict[str, Any], previous: dict[str, Any] | None = None
+    ) -> tuple[list[str], list[str]]:
+        """(actions de rechargement possibles, domaines qui exigent un redémarrage).
+
+        Avec `previous`, seuls les domaines qui ont réellement changé (ajoutés,
+        modifiés ou retirés) sont pris en compte.
+        """
+        if previous is not None:
+            changed = {
+                key for key in set(content) | set(previous) if content.get(key) != previous.get(key)
+            }
+            # Un domaine retiré se recharge aussi : ses entités doivent disparaître
+            content = {key: _merge_items(content.get(key), previous.get(key)) for key in changed}
         services = self.hass.services
         reload: set[str] = set()
         restart: set[str] = set()
@@ -378,6 +425,13 @@ def _load(path: Path, config_dir: str) -> dict[str, Any]:
     if not content:
         raise PackageError("empty")
     return dict(content)
+
+
+def _merge_items(new: Any, old: Any) -> Any:
+    """Valeur d'un domaine modifié, en gardant les plateformes de l'ancienne et de la nouvelle."""
+    if isinstance(new, list) or isinstance(old, list):
+        return [*(new if isinstance(new, list) else []), *(old if isinstance(old, list) else [])]
+    return new if new is not None else old
 
 
 def _body(content: dict[str, Any], mode: str | None) -> dict[str, Any]:

@@ -54,7 +54,7 @@ Le panneau **Package Keeper** apparaît dans la barre latérale, pour les admini
    - **Si un nouveau problème apparaît** (erreur YAML, intégration mal configurée, entité définie deux fois…), **la modification est annulée** et le problème est affiché.
    - Un problème qui existait déjà avant votre modification ne bloque pas l'enregistrement : sinon, on ne pourrait jamais réparer une configuration déjà cassée ailleurs.
    - **Avant même d'écrire**, Package Keeper contrôle ce que Home Assistant ne vérifie qu'au démarrage : les templates Jinja, les automatisations et les scripts, et les `unique_id` déjà utilisés par un autre package.
-4. **Appliquer** :
+4. **Appliquer** : seuls les domaines réellement modifiés sont proposés. Par exemple, retirer une automatisation ne propose que `automation.reload`. Le panneau dit aussi quelles entités ne seront plus fournies et, après le rechargement, celles qui restent marquées « non fournies » dans *Paramètres → Entités*, où vous pouvez les supprimer.
    - pour les domaines qui se rechargent (automation, script, template, input_*…), un bouton **Recharger maintenant** suffit ;
    - pour les autres (`sensor` avec `platform: derivative`, `climate_template`…), le panneau indique qu'un **redémarrage** est nécessaire. Faites-le depuis *Paramètres → Système → Redémarrer*, ou avec Deferred Restart si vous l'utilisez.
 5. **Historique** : chaque package garde ses versions précédentes, que l'on peut consulter et restaurer.

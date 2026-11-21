@@ -76,7 +76,7 @@ async def test_ws_full_cycle(hass: HomeAssistant, entry, hass_ws_client) -> None
     assert reply["result"] == {"name": "test_pk", "dependents": {}}
 
     reply = await ws(type=f"{DOMAIN}/reload", services=["light.turn_off"])
-    assert reply["result"] == {"reloaded": []}
+    assert reply["result"] == {"reloaded": [], "orphans": []}
 
 
 async def test_ws_refused_to_non_admin(
