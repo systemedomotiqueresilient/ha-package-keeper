@@ -211,9 +211,9 @@ async def test_panel_registered_admin_only(hass: HomeAssistant, config_dir: Path
 def test_module_copy_and_versions() -> None:
     root = Path(__file__).parents[1]
     module = root / "custom_components" / DOMAIN / "admin_phone.py"
-    assert admin_phone.MODULE_VERSION == "1.1.0"
+    assert admin_phone.MODULE_VERSION == "1.2.0"
     assert hashlib.sha256(module.read_bytes()).hexdigest() == (
-        "32b3619e975eaeb0606252b4cdca9f3d2402854193f88619cd4bde383b30e1f9"
+        "1d720150ff1c709547018236afcb1c555e630c504be0c34b20fe0b79ed80545b"
     )
     manifest = json.loads((root / "custom_components" / DOMAIN / "manifest.json").read_text())
     assert manifest["version"] == VERSION == (root / "VERSION").read_text().strip()

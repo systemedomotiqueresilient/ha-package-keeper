@@ -3,7 +3,7 @@
 // inséré avec textContent, jamais en HTML.
 
 // Doit être identique à VERSION (const.py) : un test le vérifie
-const PANEL_VERSION = "0.3.4";
+const PANEL_VERSION = "0.3.5";
 
 const TEXTS = {
   fr: {
