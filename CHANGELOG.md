@@ -2,6 +2,14 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.3.6] - 2026-11-24
+
+### Modifié
+- **Module commun `admin_phone.py` 1.3.0** (dépôt `ha-sdr`, commit `bdbe0ec`, SHA-256 `38f74609…8ddf8`), copié tel quel.
+  - Le capteur « Téléphone admin » porte le marqueur `admin_phone_convention: 1` (via `admin_sensor_attributes`). Une future intégration SDR sera reconnue sans republier le module.
+  - Les intégrations SDR absentes de la liste fermée mais qui suivent la convention (manifest signé `@systemedomotiqueresilient`, marqueur, cible existante) sont proposées à l'installation.
+  - Si le téléphone admin est une entité notify de l'application mobile, une notification avec image, tag ou lien passe par le service `notify.mobile_app_*` du même appareil. Package Keeper n'en envoie pas encore : rien ne change à l'écran.
+
 ## [0.3.5] - 2026-11-21
 
 ### Modifié

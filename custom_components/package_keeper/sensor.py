@@ -13,8 +13,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .admin_phone import (
     ADMIN_TARGET_SUFFIX,
-    ATTR_NOTIFY_SERVICE,
     CONF_ADMIN_NOTIFY_TARGET,
+    admin_sensor_attributes,
     normalize_target,
 )
 from .const import DOMAIN, VERSION
@@ -54,7 +54,7 @@ class AdminPhoneSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        return {ATTR_NOTIFY_SERVICE: self._target}
+        return admin_sensor_attributes(self._target)
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(self._entry.add_update_listener(self._async_entry_updated))
