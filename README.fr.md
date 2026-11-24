@@ -59,7 +59,9 @@ Le panneau **Package Keeper** apparaît dans la barre latérale, pour les admini
    - pour les autres (`sensor` avec `platform: derivative`, `climate_template`…), le panneau indique qu'un **redémarrage** est nécessaire. Faites-le depuis *Paramètres → Système → Redémarrer*, ou avec Deferred Restart si vous l'utilisez.
 5. **Historique** : chaque package garde ses versions précédentes, que l'on peut consulter et restaurer.
 6. **Supprimer** : le fichier est déplacé dans les sauvegardes, après confirmation. Si d'autres packages utilisent les entités qu'il crée, ils sont listés avant la confirmation. Le package reste restaurable depuis la section *Supprimés* du panneau.
-7. **Rechercher** : le champ au-dessus de la liste filtre par nom et par description. Sur un écran étroit, la liste devient un menu déroulant.
+7. **Renommer** : déplace le package sous un nouveau nom ou dans un sous-dossier (`salon` → `rdc/salon_fenetres`), avec son historique, sans toucher à son contenu ni à ses entités : rien à recharger. Même contrôle de configuration et même retour arrière qu'un enregistrement. Un `!include` relatif qui ne pointerait plus nulle part depuis le nouveau dossier est refusé.
+   - Avec `!include_dir_named`, Home Assistant nomme un package d'après son fichier **sans le dossier** : `salon/lumieres` et `cuisine/lumieres` s'écraseraient sans erreur. Package Keeper refuse donc un nom déjà porté par un autre fichier, à l'enregistrement d'un nouveau package comme au renommage.
+8. **Rechercher** : le champ au-dessus de la liste filtre par nom et par description. Sur un écran étroit, la liste devient un menu déroulant.
 
 ## Téléphone admin, commun aux intégrations SDR
 

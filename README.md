@@ -59,7 +59,9 @@ The **Package Keeper** panel appears in the sidebar, for administrators only.
    - for the others (`sensor` with `platform: derivative`, `climate_template`…), the panel says a **restart** is needed. Do it from *Settings → System → Restart*, or with Deferred Restart if you use it.
 5. **History**: each package keeps its previous versions, which you can view and restore.
 6. **Delete**: the file is moved to the backups, after confirmation. If other packages use the entities it creates, they are listed before the confirmation. It can still be restored from the panel's *Deleted* section.
-7. **Search**: the field above the list filters by name and description. On a narrow screen, the list becomes a drop-down menu.
+7. **Rename**: moves the package to a new name or into a subfolder (`living_room` → `ground_floor/living_room_windows`), with its history, without touching its content or its entities: nothing to reload. Same configuration check and same rollback as a save. A relative `!include` that would no longer point anywhere from the new folder is refused.
+   - With `!include_dir_named`, Home Assistant names a package after its file **without the folder**: `living_room/lights` and `kitchen/lights` would silently overwrite each other. Package Keeper therefore refuses a name already used by another file, both when saving a new package and when renaming.
+8. **Search**: the field above the list filters by name and description. On a narrow screen, the list becomes a drop-down menu.
 
 ## Admin phone, shared by the SDR integrations
 

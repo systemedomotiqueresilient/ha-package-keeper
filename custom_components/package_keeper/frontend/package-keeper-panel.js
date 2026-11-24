@@ -3,7 +3,7 @@
 // inséré avec textContent, jamais en HTML.
 
 // Doit être identique à VERSION (const.py) : un test le vérifie
-const PANEL_VERSION = "0.3.6";
+const PANEL_VERSION = "0.4.0";
 
 const TEXTS = {
   fr: {
@@ -19,6 +19,8 @@ const TEXTS = {
     save: "Enregistrer",
     history: "Historique",
     del: "Supprimer",
+    rename: "Renommer",
+    renamePrompt: "Nouveau nom pour « {name} » (lettres minuscules, chiffres, _ ; sous-dossier possible avec /). Les entités ne changent pas.",
     close: "Fermer",
     view: "Voir",
     restore: "Restaurer",
@@ -35,6 +37,7 @@ const TEXTS = {
     saved: "Package « {name} » enregistré. La configuration est valide.",
     restored: "Package « {name} » restauré. La configuration est valide.",
     deletedOk: "Package « {name} » supprimé. Une sauvegarde est conservée.",
+    renamedOk: "Package « {old} » renommé en « {name} », avec son historique. Les entités sont inchangées : rien à recharger.",
     rolledBack: "Modification annulée : la configuration ne passait plus le contrôle de Home Assistant. L'ancienne version a été remise.",
     reloadHint: "À recharger pour prendre effet :",
     restartHint: "Redémarrage de Home Assistant nécessaire pour : {list}. Paramètres → Système → Redémarrer (ou Deferred Restart si vous l'utilisez).",
@@ -64,6 +67,9 @@ const TEXTS = {
       yaml_error: "YAML illisible.",
       include_outside: "Un !include pointe hors de /config : refusé.",
       not_found: "Introuvable.",
+      same_name: "C'est déjà le nom de ce package.",
+      already_exists: "Un package porte déjà ce nom.",
+      name_conflict: "Home Assistant nomme un package d'après son fichier, sans le dossier : ce nom est déjà pris par un autre package, les deux s'écraseraient.",
       packages_disabled: "Les packages ne sont pas activés dans configuration.yaml.",
       config_invalid: "La configuration de Home Assistant ne passait plus le contrôle.",
       invalid_content: "Le package contient des erreurs que Home Assistant ne signalerait qu'au démarrage. Rien n'a été écrit.",
@@ -83,6 +89,8 @@ const TEXTS = {
     save: "Save",
     history: "History",
     del: "Delete",
+    rename: "Rename",
+    renamePrompt: "New name for “{name}” (lowercase letters, digits, _; subfolder allowed with /). Entities do not change.",
     close: "Close",
     view: "View",
     restore: "Restore",
@@ -99,6 +107,7 @@ const TEXTS = {
     saved: "Package “{name}” saved. The configuration is valid.",
     restored: "Package “{name}” restored. The configuration is valid.",
     deletedOk: "Package “{name}” deleted. A backup is kept.",
+    renamedOk: "Package “{old}” renamed to “{name}”, with its history. Entities are unchanged: nothing to reload.",
     rolledBack: "Change cancelled: the configuration no longer passed Home Assistant's check. The previous version was put back.",
     reloadHint: "Reload to apply:",
     restartHint: "Home Assistant restart required for: {list}. Settings → System → Restart (or Deferred Restart if you use it).",
@@ -128,6 +137,9 @@ const TEXTS = {
       yaml_error: "Unreadable YAML.",
       include_outside: "An !include points outside /config: refused.",
       not_found: "Not found.",
+      same_name: "This is already the package's name.",
+      already_exists: "A package already has this name.",
+      name_conflict: "Home Assistant names a package after its file, without the folder: this name is already used by another package, one would overwrite the other.",
       packages_disabled: "Packages are not enabled in configuration.yaml.",
       config_invalid: "Home Assistant's configuration no longer passed the check.",
       invalid_content: "The package contains errors Home Assistant would only report at startup. Nothing was written.",
@@ -302,6 +314,11 @@ class PackageKeeperPanel extends HTMLElement {
         if (!confirm(question)) return;
         s.result = await this._ws("delete", { name, confirm: true });
         if (s.result.ok) Object.assign(s, { current: null, isNew: false, text: "", original: "" });
+      } else if (kind === "rename") {
+        const answer = prompt(this._fmt(this.t.renamePrompt, { name }), name);
+        if (answer === null || !answer.trim() || answer.trim() === name) return;
+        s.result = await this._ws("rename", { name, new_name: answer.trim() });
+        if (s.result.ok) s.current = s.result.name; // modifications non enregistrées conservées
       } else {
         s.result = await this._ws("save", { name, text: s.text, dry_run: kind === "check" });
         if (s.result.ok && kind === "save") Object.assign(s, { current: name, isNew: false, original: s.text });
@@ -396,8 +413,8 @@ class PackageKeeperPanel extends HTMLElement {
       box.append(adv);
     }
     if (r.ok) {
-      const key = { checked: "checked", saved: "saved", restored: "restored", deleted: "deletedOk" }[r.action] || "saved";
-      box.append(this._el("div", { class: "msg ok", text: this._fmt(t[key], { name: r.name }) }));
+      const key = { checked: "checked", saved: "saved", restored: "restored", deleted: "deletedOk", renamed: "renamedOk" }[r.action] || "saved";
+      box.append(this._el("div", { class: "msg ok", text: this._fmt(t[key], { name: r.name, old: r.renamed_from }) }));
     } else {
       const text = r.rolled_back ? t.rolledBack : t.errors[r.error] || t.errors.unknown;
       const msg = this._el("div", { class: "msg err", text });
@@ -566,6 +583,7 @@ class PackageKeeperPanel extends HTMLElement {
           this._el("button", { class: "flat", text: t.check, disabled: busy, onclick: () => this._run("check") }),
           this._el("button", { text: t.save, disabled: busy, onclick: () => this._run("save") }),
           s.isNew ? null : this._el("button", { class: "flat", text: t.history, disabled: busy, onclick: () => this._history(s.current) }),
+          s.isNew ? null : this._el("button", { class: "flat", text: t.rename, disabled: busy, onclick: () => this._run("rename") }),
           s.isNew ? null : this._el("button", { class: "danger", text: t.del, disabled: busy, onclick: () => this._run("delete") })));
       const result = this._renderResult();
       if (result) toolbar.append(this._el("div", { class: "results" }, result));

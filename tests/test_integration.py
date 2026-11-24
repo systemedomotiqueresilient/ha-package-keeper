@@ -61,6 +61,11 @@ async def test_ws_full_cycle(hass: HomeAssistant, entry, hass_ws_client) -> None
     reply = await ws(type=f"{DOMAIN}/restore", name="test_pk", backup=backups[0]["id"])
     assert reply["result"]["ok"] and reply["result"]["action"] == "restored"
 
+    reply = await ws(type=f"{DOMAIN}/rename", name="test_pk", new_name="essais/test_pk")
+    assert reply["result"]["ok"] and reply["result"]["renamed_from"] == "test_pk"
+    reply = await ws(type=f"{DOMAIN}/rename", name="essais/test_pk", new_name="test_pk")
+    assert reply["result"]["ok"] and reply["result"]["name"] == "test_pk"
+
     # Suppression : confirmation obligatoire dans l'API elle-même
     reply = await ws(type=f"{DOMAIN}/delete", name="test_pk")
     assert not reply["success"] and reply["error"]["code"] == "invalid_format"

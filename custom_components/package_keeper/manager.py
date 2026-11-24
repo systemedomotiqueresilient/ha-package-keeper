@@ -39,6 +39,7 @@ _PHONE = {
     "saved": ("Package Keeper", "Package « {name} » enregistré."),
     "deleted": ("Package Keeper", "Package « {name} » supprimé (sauvegarde conservée)."),
     "restored": ("Package Keeper", "Package « {name} » restauré depuis une sauvegarde."),
+    "renamed": ("Package Keeper", "Package « {old} » renommé en « {name} »."),
     "rolled_back": (
         "Package Keeper : modification annulée",
         "Le package « {name} » cassait la configuration : l'ancienne version a été remise.",
@@ -48,6 +49,7 @@ _PHONE_EN = {
     "saved": ("Package Keeper", "Package “{name}” saved."),
     "deleted": ("Package Keeper", "Package “{name}” deleted (backup kept)."),
     "restored": ("Package Keeper", "Package “{name}” restored from a backup."),
+    "renamed": ("Package Keeper", "Package “{old}” renamed to “{name}”."),
     "rolled_back": (
         "Package Keeper: change cancelled",
         "Package “{name}” broke the configuration: the previous version was put back.",
@@ -61,7 +63,7 @@ class Outcome:
 
     ok: bool
     name: str
-    action: str  # checked | saved | deleted | restored
+    action: str  # checked | saved | deleted | restored | renamed
     rolled_back: bool = False
     error: str | None = None  # code traduit dans le panneau
     detail: str | None = None  # message brut (YAML, contrôle de configuration)
@@ -70,6 +72,7 @@ class Outcome:
     reload: list[str] = field(default_factory=list)
     restart: list[str] = field(default_factory=list)
     removed: list[str] = field(default_factory=list)  # entités qui ne seront plus fournies
+    renamed_from: str | None = None  # ancien nom (renommage)
 
     def as_dict(self) -> dict[str, Any]:
         return {k: v for k, v in self.__dict__.items() if v not in (None, [], {})} | {
@@ -130,6 +133,7 @@ class PackageManager:
             setup = await self._enabled_setup()
             data = store.check_text(text)
             await self._run(self._check_includes, setup, name, text)  # nom et !include
+            await self._run(self._check_new_name, setup, name)
         except PackageError as err:
             outcome.error, outcome.detail = err.code, err.detail or None
             return outcome
@@ -209,6 +213,65 @@ class PackageManager:
         await self._phone("deleted", name)
         return outcome
 
+    async def async_rename(self, name: str, new_name: str) -> Outcome:
+        """Renomme (ou déplace dans un sous-dossier) un package, sans toucher à son contenu.
+
+        Le fichier et son historique de sauvegardes suivent. Les entités ne
+        changent pas : rien à recharger. Contrôle de configuration et retour
+        arrière comme pour un enregistrement.
+        """
+        outcome = Outcome(ok=False, name=new_name, action="renamed", renamed_from=name)
+        try:
+            setup = await self._enabled_setup()
+            name, new_name = store.canonical(name), store.canonical(new_name)
+            outcome.name, outcome.renamed_from = new_name, name
+            if name == new_name:
+                raise PackageError("same_name")
+            data = await self._run(store.current_bytes, setup, name)
+            if data is None:
+                raise PackageError("not_found")
+            if await self._run(store.current_bytes, setup, new_name) is not None:
+                raise PackageError("already_exists", new_name)
+            if other := await self._run(store.stem_conflict, setup, new_name, name):
+                raise PackageError("name_conflict", other)
+            # Un !include relatif peut ne plus pointer au même endroit depuis un autre dossier
+            await self._run(self._check_includes, setup, new_name, data.decode("utf-8"))
+        except PackageError as err:
+            outcome.error, outcome.detail = err.code, err.detail or None
+            return outcome
+
+        async with self._lock:
+            tmp = await self._run(store.stage, setup, new_name, data)
+            try:
+                await self._run(_load, tmp, self.config_dir)
+            except PackageError as err:
+                await self._run(store.discard, tmp)
+                await self._run(store.remove_empty_dirs, setup, new_name)
+                outcome.error, outcome.detail = err.code, err.detail or None
+                return outcome
+            before = await _config_problems(self.hass)
+            await self._run(store.commit, setup, new_name, tmp)
+            await self._run(store.remove, setup, name)
+            moved = await self._run(store.move_backups, self.config_dir, name, new_name)
+            new = sorted((await _config_problems(self.hass)) - before)
+            if new:
+                await self._run(store.remove, setup, new_name)
+                await self._run(store.remove_empty_dirs, setup, new_name)
+                await self._run(store.restore_bytes, setup, name, data)
+                await self._run(store.unmove_backups, self.config_dir, name, new_name, moved)
+                outcome.rolled_back, outcome.error = True, "config_invalid"
+                outcome.detail = "\n\n".join(new)
+                _LOGGER.warning(
+                    "Renommage de %s annulé : la configuration ne passait plus le contrôle", name
+                )
+                await self._phone("rolled_back", name, always=True)
+                return outcome
+            await self._run(store.remove_empty_dirs, setup, name)
+
+        outcome.ok = True
+        await self._phone("renamed", new_name, old=name)
+        return outcome
+
     async def async_restore(self, name: str, backup_id: str) -> Outcome:
         try:
             text = await self.async_read_backup(name, backup_id)
@@ -281,6 +344,13 @@ class PackageManager:
         others = {other: _body(content, setup.mode) for other, content in contents.items()}
         problems += deep_checks.duplicate_errors(body, others)
         return problems
+
+    def _check_new_name(self, setup: PackagesSetup, name: str) -> None:
+        """Nouveau fichier : refuse un nom de package déjà porté par un autre fichier."""
+        if store.current_bytes(setup, name) is not None:
+            return  # fichier existant : on ne bloque pas une situation déjà en place
+        if other := store.stem_conflict(setup, name):
+            raise PackageError("name_conflict", other)
 
     def _check_includes(self, setup: PackagesSetup, name: str, text: str) -> None:
         """Un !include ne doit pas aller chercher un fichier hors de /config."""
@@ -398,7 +468,7 @@ class PackageManager:
                 restart.add(domain)
         return sorted(reload), sorted(restart)
 
-    async def _phone(self, key: str, name: str, *, always: bool = False) -> None:
+    async def _phone(self, key: str, name: str, *, always: bool = False, old: str = "") -> None:
         target = self.entry.data.get(CONF_ADMIN_NOTIFY_TARGET)
         notify = self.entry.options.get(CONF_NOTIFY_CHANGES, DEFAULT_NOTIFY_CHANGES)
         if not target or not (always or notify):
@@ -407,7 +477,7 @@ class PackageManager:
         title, message = texts[key]
         self.entry.async_create_task(
             self.hass,
-            async_notify_admin(self.hass, target, title, message.format(name=name)),
+            async_notify_admin(self.hass, target, title, message.format(name=name, old=old)),
             f"{DOMAIN} téléphone admin",
         )
 

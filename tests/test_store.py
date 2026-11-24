@@ -24,7 +24,19 @@ def test_valid_names(name: str, parts: tuple[str, ...]) -> None:
 
 @pytest.mark.parametrize(
     "name",
-    ["", "../configuration", "/etc/passwd", "Derivee", "a b", "x/../y", "a/b/c/d/e", "é", None],
+    [
+        "",
+        "../configuration",
+        "/etc/passwd",
+        "Derivee",
+        "a b",
+        "x/../y",
+        "a/b/c/d/e",
+        "é",
+        None,
+        "secrets",
+        "x/secrets.yaml",
+    ],
 )
 def test_invalid_names(name) -> None:
     with pytest.raises(PackageError) as err:
@@ -62,7 +74,9 @@ def test_symlink_refused(tmp_path: Path) -> None:
 
 
 def test_description() -> None:
-    assert store.description("# packages/x.yaml\n# Chauffage mobile\nclimate:\n") == "Chauffage mobile"
+    assert (
+        store.description("# packages/x.yaml\n# Chauffage mobile\nclimate:\n") == "Chauffage mobile"
+    )
     assert store.description("# =====\n# sensor:\n# =====\nsensor:\n") is None
     assert store.description("sensor:\n# Commentaire tardif\n") is None
 
@@ -102,3 +116,42 @@ def test_list_packages_skips_unmanaged_names(tmp_path: Path) -> None:
     names = {p["name"]: p for p in store.list_packages(setup)}
     assert set(names) == {"ok", "sous/imbrique"}
     assert names["ok"]["description"] == "Mon package"
+
+
+def test_stem_conflict(tmp_path: Path) -> None:
+    """include_dir_named : le nom du package est celui du fichier, sans son dossier."""
+    named = store.PackagesSetup(True, "include_dir_named", tmp_path)
+    (tmp_path / "salon").mkdir()
+    (tmp_path / "salon" / "lumieres.yaml").write_text("a:\n", encoding="utf-8")
+    assert store.stem_conflict(named, "cuisine/lumieres") == "salon/lumieres"
+    assert store.stem_conflict(named, "lumieres.yaml") == "salon/lumieres"
+    assert store.stem_conflict(named, "salon/lumieres") is None  # lui-même
+    assert store.stem_conflict(named, "lumieres", ignore="salon/lumieres") is None
+    assert store.stem_conflict(named, "chauffage") is None
+    merged = store.PackagesSetup(True, "include_dir_merge_named", tmp_path)
+    assert store.stem_conflict(merged, "cuisine/lumieres") is None
+
+
+def test_move_backups_and_undo(tmp_path: Path) -> None:
+    setup = store.PackagesSetup(True, "include_dir_named", tmp_path / "packages")
+    setup.directory.mkdir()
+    (setup.directory / "salon.yaml").write_text("a:\n", encoding="utf-8")
+    first = store.backup(str(tmp_path), setup, "salon", 5, "before_saved")
+    moved = store.move_backups(str(tmp_path), "salon", "rdc/salon")
+    assert moved == [first]
+    assert store.list_backups(str(tmp_path), "salon") == []
+    assert [b["id"] for b in store.list_backups(str(tmp_path), "rdc/salon")] == [first]
+    store.unmove_backups(str(tmp_path), "salon", "rdc/salon", moved)
+    assert [b["id"] for b in store.list_backups(str(tmp_path), "salon")] == [first]
+    assert not (store.backup_dir(str(tmp_path)) / "rdc__salon").exists()
+    assert store.move_backups(str(tmp_path), "absent", "autre") == []
+
+
+def test_remove_empty_dirs(tmp_path: Path) -> None:
+    setup = store.PackagesSetup(True, "include_dir_named", tmp_path)
+    (tmp_path / "a" / "b").mkdir(parents=True)
+    (tmp_path / "a" / "garde.yaml").write_text("x:\n", encoding="utf-8")
+    store.remove_empty_dirs(setup, "a/b/c")
+    assert not (tmp_path / "a" / "b").exists() and (tmp_path / "a").is_dir()
+    store.remove_empty_dirs(setup, "racine")  # jamais le dossier des packages
+    assert tmp_path.is_dir()

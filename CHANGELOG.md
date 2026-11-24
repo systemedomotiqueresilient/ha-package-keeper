@@ -2,6 +2,15 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.4.0] - 2026-11-24
+
+### Ajouté
+- **Renommer un package** (bouton *Renommer*, commande WebSocket `package_keeper/rename`). Le fichier change de nom ou de sous-dossier en une seule opération ; son historique de sauvegardes le suit ; le contenu et les entités ne changent pas, donc rien à recharger. Contrôle de configuration avant et après, retour arrière complet (fichier, historique, dossiers) si un nouveau problème apparaît. Un `!include` relatif cassé par le changement de dossier est refusé avant toute écriture. Les sous-dossiers devenus vides sont retirés. Le téléphone admin est prévenu (option *notifier les modifications*).
+- **Conflit de noms** (`name_conflict`) : avec `!include_dir_named`, Home Assistant nomme un package d'après son fichier sans le dossier, et deux fichiers `salon/lumieres` et `cuisine/lumieres` s'écrasent sans erreur. Un nouveau package ou un renommage qui créerait ce conflit est refusé. Un conflit déjà présent n'empêche pas de modifier les fichiers existants.
+
+### Corrigé
+- **Nom `secrets` refusé** : `!include_dir_named` ignore tout fichier `secrets.yaml`, un tel package n'aurait jamais été chargé.
+
 ## [0.3.6] - 2026-11-24
 
 ### Modifié

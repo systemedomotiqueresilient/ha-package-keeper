@@ -395,3 +395,98 @@ async def test_delete_lists_removed(hass: HomeAssistant, entry) -> None:
     assert (await manager.async_save("salon", GOOD)).ok
     outcome = await manager.async_delete("salon")
     assert outcome.removed == ["input_boolean.fenetre_salon_virtuelle"]
+
+
+# --- Renommage (0.4.0) ---------------------------------------------------------
+
+
+async def test_rename_moves_file_and_history(hass: HomeAssistant, entry, config_dir: Path) -> None:
+    hass.config_entries.async_update_entry(
+        entry, data={CONF_ADMIN_NOTIFY_TARGET: "notify.mobile_app_pixel_9"}
+    )
+    calls = _phone(hass)
+    manager = _manager(entry)
+    assert (await manager.async_save("salon", GOOD)).ok
+    assert (await manager.async_save("salon", GOOD + "# v2\n")).ok
+    old_backups = [b["id"] for b in await manager.async_backups("salon")]
+    assert old_backups
+
+    outcome = await manager.async_rename("salon", "rdc/salon_fenetres.yaml")
+    await hass.async_block_till_done()
+    assert outcome.ok, outcome
+    assert outcome.action == "renamed" and outcome.name == "rdc/salon_fenetres"
+    assert outcome.renamed_from == "salon"
+    assert outcome.reload == [] and outcome.restart == []
+    packages = config_dir / "packages"
+    assert not (packages / "salon.yaml").exists()
+    assert (packages / "rdc" / "salon_fenetres.yaml").read_text(encoding="utf-8") == GOOD + "# v2\n"
+    assert [b["id"] for b in await manager.async_backups("rdc/salon_fenetres")] == old_backups
+    overview = await manager.async_overview()
+    assert overview["deleted"] == []  # l'ancien nom n'apparaît pas comme supprimé
+    assert [p["name"] for p in overview["packages"]] == ["rdc/salon_fenetres"]
+    assert any("renommé" in c.data["message"] or "renamed" in c.data["message"] for c in calls)
+
+    # Et retour à la racine : le sous-dossier vide disparaît
+    assert (await manager.async_rename("rdc/salon_fenetres", "salon_fenetres")).ok
+    assert not (packages / "rdc").exists()
+
+
+async def test_rename_refusals(hass: HomeAssistant, entry, config_dir: Path) -> None:
+    manager = _manager(entry)
+    assert (await manager.async_save("salon", GOOD)).ok
+    other = GOOD.replace("fenetre_salon_virtuelle", "lampe_cuisine")
+    assert (await manager.async_save("cuisine/lumieres", other)).ok
+
+    assert (await manager.async_rename("salon", "salon.yaml")).error == "same_name"
+    assert (await manager.async_rename("absent", "x")).error == "not_found"
+    assert (await manager.async_rename("salon", "cuisine/lumieres")).error == "already_exists"
+    conflict = await manager.async_rename("salon", "rdc/lumieres")
+    assert conflict.error == "name_conflict" and conflict.detail == "cuisine/lumieres"
+    assert (await manager.async_rename("salon", "../salon")).error == "invalid_name"
+    assert (await manager.async_rename("salon", "secrets")).error == "invalid_name"
+    assert (config_dir / "packages" / "salon.yaml").is_file()  # rien n'a bougé
+
+
+async def test_new_file_name_conflict(hass: HomeAssistant, entry, config_dir: Path) -> None:
+    """Deux fichiers de même nom dans deux dossiers s'écraseraient sans erreur."""
+    manager = _manager(entry)
+    assert (await manager.async_save("salon/lumieres", GOOD)).ok
+    other = GOOD.replace("fenetre_salon_virtuelle", "lampe_cuisine")
+    outcome = await manager.async_save("cuisine/lumieres", other, dry_run=True)
+    assert outcome.error == "name_conflict" and outcome.detail == "salon/lumieres"
+    assert (await manager.async_save("salon/lumieres", GOOD + "# v2\n")).ok  # lui-même : OK
+
+
+async def test_rename_breaking_relative_include(hass: HomeAssistant, entry, config_dir: Path) -> None:
+    """Un !include relatif qui ne pointe plus nulle part depuis le nouveau dossier."""
+    packages = config_dir / "packages"
+    (packages / "noms.yaml.txt").write_text("name: Fenêtre\n", encoding="utf-8")
+    text = "input_boolean:\n  fenetre: !include noms.yaml.txt\n"
+    manager = _manager(entry)
+    assert (await manager.async_save("salon", text)).ok
+    outcome = await manager.async_rename("salon", "rdc/salon")
+    assert outcome.error == "yaml_error"
+    assert (packages / "salon.yaml").is_file()
+    assert not (packages / "rdc").exists()
+
+
+async def test_rename_rolled_back(hass: HomeAssistant, entry, config_dir: Path, monkeypatch) -> None:
+    from custom_components.package_keeper import manager as manager_module
+
+    manager = _manager(entry)
+    assert (await manager.async_save("salon", GOOD)).ok
+    assert (await manager.async_save("salon", GOOD + "# v2\n")).ok
+    backups = [b["id"] for b in await manager.async_backups("salon")]
+    answers = iter([set(), {"nouveau problème"}])
+
+    async def fake_problems(hass: HomeAssistant) -> set[str]:
+        return next(answers)
+
+    monkeypatch.setattr(manager_module, "_config_problems", fake_problems)
+    outcome = await manager.async_rename("salon", "rdc/salon")
+    assert outcome.rolled_back and outcome.error == "config_invalid"
+    assert outcome.detail == "nouveau problème"
+    packages = config_dir / "packages"
+    assert (packages / "salon.yaml").read_text(encoding="utf-8") == GOOD + "# v2\n"
+    assert not (packages / "rdc").exists()
+    assert [b["id"] for b in await manager.async_backups("salon")] == backups

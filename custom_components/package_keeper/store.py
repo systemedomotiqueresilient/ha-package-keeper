@@ -7,6 +7,7 @@ sauvegardes ; il ne modifie jamais configuration.yaml.
 
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import os
@@ -72,7 +73,34 @@ def validate_name(name: str) -> tuple[str, ...]:
     parts = tuple(name.split("/"))
     if not name or len(parts) > 4 or not all(_SLUG_RE.match(p) for p in parts):
         raise PackageError("invalid_name")
+    if parts[-1] == "secrets":
+        # !include_dir_named ignore tout fichier secrets.yaml : le package ne serait jamais chargé
+        raise PackageError("invalid_name")
     return parts
+
+
+def canonical(name: str) -> str:
+    """Nom normalisé : « chauffage/derivee_wc.yaml » → « chauffage/derivee_wc »."""
+    return "/".join(validate_name(name))
+
+
+def stem_conflict(setup: PackagesSetup, name: str, ignore: str | None = None) -> str | None:
+    """Autre package qui porterait le même nom pour Home Assistant (0.4.0).
+
+    Avec !include_dir_named, le nom du package est le nom du fichier SANS son
+    dossier : « salon/lumieres » et « cuisine/lumieres » s'écrasent l'un l'autre
+    sans erreur. Sans objet en mode include_dir_merge_named.
+    """
+    if setup.mode != "include_dir_named":
+        return None
+    stem = validate_name(name)[-1]
+    for item in list_packages(setup):
+        other = item["name"]
+        if other in (canonical(name), ignore):
+            continue
+        if other.rsplit("/", 1)[-1] == stem:
+            return other
+    return None
 
 
 def package_path(setup: PackagesSetup, name: str) -> Path:
@@ -214,6 +242,49 @@ def read_backup(config_dir: str, name: str, backup_id: str) -> str:
     if not path.is_file():
         raise PackageError("not_found")
     return path.read_text(encoding="utf-8")
+
+
+def move_backups(config_dir: str, old: str, new: str) -> list[str]:
+    """Déplace l'historique d'un package renommé ; renvoie les fichiers déplacés (0.4.0)."""
+    source = _backup_folder(config_dir, old)
+    if not source.is_dir():
+        return []
+    target = _backup_folder(config_dir, new)
+    target.mkdir(parents=True, exist_ok=True)
+    moved = []
+    for path in sorted(source.glob("*.yaml")):
+        os.replace(path, target / path.name)
+        moved.append(path.name)
+    _remove_if_empty(source)
+    return moved
+
+
+def unmove_backups(config_dir: str, old: str, new: str, moved: list[str]) -> None:
+    """Annule move_backups (retour arrière d'un renommage)."""
+    if not moved:
+        return
+    source = _backup_folder(config_dir, old)
+    target = _backup_folder(config_dir, new)
+    source.mkdir(parents=True, exist_ok=True)
+    for name in moved:
+        if (target / name).is_file():
+            os.replace(target / name, source / name)
+    _remove_if_empty(target)
+
+
+def _remove_if_empty(folder: Path) -> None:
+    with contextlib.suppress(OSError):  # pas vide (ou déjà absent)
+        folder.rmdir()
+
+
+def remove_empty_dirs(setup: PackagesSetup, name: str) -> None:
+    """Après un déplacement, retire les sous-dossiers devenus vides (jamais le dossier racine)."""
+    folder = package_path(setup, name).parent
+    while folder != setup.directory and setup.directory in folder.parents:
+        if folder.is_symlink() or any(folder.iterdir()):
+            return
+        folder.rmdir()
+        folder = folder.parent
 
 
 def list_deleted(config_dir: str, setup: PackagesSetup) -> list[str]:

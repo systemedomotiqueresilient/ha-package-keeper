@@ -81,6 +81,20 @@ async def ws_save(manager: PackageManager, msg: dict[str, Any]) -> dict:
 @websocket_api.require_admin
 @websocket_api.websocket_command(
     {
+        vol.Required("type"): f"{DOMAIN}/rename",
+        vol.Required("name"): _NAME,
+        vol.Required("new_name"): _NAME,
+    }
+)
+@websocket_api.async_response
+@_handler
+async def ws_rename(manager: PackageManager, msg: dict[str, Any]) -> dict:
+    return (await manager.async_rename(msg["name"], msg["new_name"])).as_dict()
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
         vol.Required("type"): f"{DOMAIN}/delete",
         vol.Required("name"): _NAME,
         # Le panneau demande confirmation ; l'API l'exige aussi
@@ -165,6 +179,7 @@ def async_register(hass: HomeAssistant) -> None:
         ws_read,
         ws_save,
         ws_delete,
+        ws_rename,
         ws_backups,
         ws_read_backup,
         ws_restore,
