@@ -63,6 +63,19 @@ The **Package Keeper** panel appears in the sidebar, for administrators only.
    - With `!include_dir_named`, Home Assistant names a package after its file **without the folder**: `living_room/lights` and `kitchen/lights` would silently overwrite each other. Package Keeper therefore refuses a name already used by another file, both when saving a new package and when renaming.
 8. **Search**: the field above the list filters by name and description. On a narrow screen, the list becomes a drop-down menu.
 
+## Git synchronisation (0.5.0)
+
+Off by default, it is set in the integration options. Every **accepted** change (after the configuration check) becomes a commit; a cancelled change never does.
+
+- **Local**: mirror repository in `/config/.package_keeper/git`, reachable through Samba. The packages folder itself is never turned into a repository.
+- **Remote**: also pushed to a **private** GitHub, Gitea, Forgejo or GitLab repository over HTTPS, with an access token limited to that repository (read and write access to its contents), or to a local repository `file:///share/…` or `file:///media/…` (a mounted NAS, for example).
+- **Public repositories are refused**, without exception: a package may contain an identifier or a password written in clear text, for example by an AI that did not use `!secret`. Visibility is checked when configuring and before every push; a host whose visibility Package Keeper cannot read is refused.
+- **First connection**: an empty repository receives the initial state of your packages; a repository holding exactly your packages is taken over as is; any other non-empty repository pauses the synchronisation, with a repair and a notification to the admin phone.
+- **Only the `.yaml` files of the packages folder** are synchronised. Never `secrets.yaml`.
+- **Do not point the *Git pull* app at the same repository**: it would rewrite `/config` from what Package Keeper has just pushed.
+- The **Git synchronisation** sensor and an indicator in the panel show the state: up to date, commits waiting, paused, error.
+- Requires `git`, included in the official Home Assistant image (HAOS, Supervised, Container).
+
 ## Admin phone, shared by the SDR integrations
 
 Like Entity Inventory, Sentinel Report, Deferred Restart and Partition Map, Package Keeper creates its own **Admin phone** entity, a diagnostic sensor.

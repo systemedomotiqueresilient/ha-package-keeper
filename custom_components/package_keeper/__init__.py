@@ -22,6 +22,7 @@ from .const import (
     PANEL_URL_PATH,
     VERSION,
 )
+from .git_sync import GitSync
 from .manager import PackageManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,13 +39,18 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: PackageKeeperConfigEntry) -> bool:
-    entry.runtime_data = PackageManager(hass, entry)
+    manager = PackageManager(hass, entry)
+    manager.git = GitSync(hass, entry, manager.async_setup_info)
+    entry.runtime_data = manager
+    await manager.git.async_start()
     await _async_register_panel(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: PackageKeeperConfigEntry) -> bool:
+    if entry.runtime_data.git is not None:
+        await entry.runtime_data.git.async_stop()
     if "frontend" in hass.config.components:
         ha_frontend.async_remove_panel(hass, PANEL_URL_PATH, warn_if_unknown=False)
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

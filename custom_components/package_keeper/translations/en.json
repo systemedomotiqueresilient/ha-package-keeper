@@ -31,24 +31,81 @@
         "data": {
           "admin_notify_target": "Admin phone (optional)",
           "notify_changes": "Notify every change",
-          "backups_kept": "Backups kept per package"
+          "backups_kept": "Backups kept per package",
+          "git_mode": "Git synchronisation"
         },
         "data_description": {
           "admin_notify_target": "A notify.mobile_app_* service or a notify entity from the Companion app. Pre-filled with the phone already chosen in another SDR integration (Entity Inventory, Sentinel Report…), if any.",
           "notify_changes": "Sends a notification to the admin phone each time a package is saved, deleted or restored. An automatic rollback is always notified.",
-          "backups_kept": "Older versions are deleted beyond this number. Backups are stored in /config/.package_keeper/backups."
+          "backups_kept": "Older versions are deleted beyond this number. Backups are stored in /config/.package_keeper/backups.",
+          "git_mode": "Off: nothing changes. Local: every accepted change is committed in /config/.package_keeper/git. Remote: also pushed to a PRIVATE repository (GitHub, Gitea, Forgejo, GitLab) or to a local repository under /share or /media. Requires git, included in the official Home Assistant image."
+        }
+      },
+      "git": {
+        "title": "Remote Git repository",
+        "description": "Only the .yaml files of the packages folder are synchronised. A public repository is always refused: a package may contain an identifier or a password written in clear text. Do not point the Git pull app at the same repository.",
+        "data": {
+          "git_url": "Repository address",
+          "git_branch": "Branch",
+          "git_username": "User name",
+          "git_token": "Access token"
+        },
+        "data_description": {
+          "git_url": "Repository address on GitHub, Gitea, Forgejo or GitLab, for example {example}, or a local repository such as {local}. No credentials in the address.",
+          "git_branch": "Branch Package Keeper pushes to, e.g. main.",
+          "git_username": "Account name used with the token (any value works for GitHub).",
+          "git_token": "Token limited to this repository, with read and write access to its contents. Leave empty to keep the token already saved. It is never displayed again."
         }
       }
     },
     "error": {
-      "invalid_target": "Enter a notify service or entity, e.g. notify.mobile_app_my_phone."
+      "invalid_target": "Enter a notify service or entity, e.g. notify.mobile_app_my_phone.",
+      "git_missing": "git is not available on this installation: Git synchronisation is not possible.",
+      "invalid_url": "Invalid address: https://HOST/ACCOUNT/REPOSITORY, or file:///share/… or file:///media/….",
+      "url_with_credentials": "Do not put credentials in the address: use the token field.",
+      "invalid_branch": "Invalid branch name.",
+      "token_required": "An access token is required for an https repository.",
+      "public_repo": "This repository is public: refused. Make it private or choose another one.",
+      "visibility_unknown": "Package Keeper cannot check that this repository is private (unknown host): refused. Supported: GitHub, Gitea, Forgejo, GitLab.",
+      "auth_failed": "Access refused: check the token and its rights on this repository.",
+      "unreachable": "The host cannot be reached."
     }
   },
   "entity": {
     "sensor": {
       "admin_phone": {
         "name": "Admin phone"
+      },
+      "git_sync": {
+        "name": "Git synchronisation",
+        "state": {
+          "disabled": "Off",
+          "unavailable": "git missing",
+          "ok": "Up to date",
+          "pending": "Commits waiting",
+          "paused": "Paused",
+          "error": "Error"
+        }
       }
+    }
+  },
+  "selector": {
+    "git_mode": {
+      "options": {
+        "off": "Off",
+        "local": "Local repository only",
+        "remote": "Local repository + remote repository"
+      }
+    }
+  },
+  "issues": {
+    "git_not_empty": {
+      "title": "Package Keeper: remote Git repository not empty",
+      "description": "The repository {url} (branch {branch}) already holds content that is not your current packages. Nothing was sent, and nothing is committed until this is resolved. Empty the repository, choose another one or another branch in the Package Keeper options. If the repository holds exactly your current packages, its history is taken over automatically."
+    },
+    "git_public_repo": {
+      "title": "Package Keeper: remote Git repository is public",
+      "description": "The repository {url} is public. Package Keeper never pushes to a public repository: a package may contain an identifier or a password written in clear text. Make it private, or choose another repository in the options. Synchronisation resumes on its own once the repository is private."
     }
   }
 }

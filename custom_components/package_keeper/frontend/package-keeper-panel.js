@@ -3,7 +3,7 @@
 // inséré avec textContent, jamais en HTML.
 
 // Doit être identique à VERSION (const.py) : un test le vérifie
-const PANEL_VERSION = "0.4.0";
+const PANEL_VERSION = "0.5.0";
 
 const TEXTS = {
   fr: {
@@ -59,6 +59,8 @@ const TEXTS = {
     disabledHow: "Pour éditer configuration.yaml : installez l'application complémentaire Samba share (Paramètres → Modules complémentaires) si ce n'est pas déjà fait, ouvrez le partage « config » depuis votre ordinateur, puis modifiez le fichier avec un éditeur de texte comme Notepad++ (en UTF-8, sans tabulations). Faites une sauvegarde avant.",
     mergeMode: "Mode « include_dir_merge_named » : chaque fichier doit commencer par le nom du package, puis son contenu en retrait.",
     folder: "Dossier : {dir}",
+    git: { ok: "Git : à jour", pending: "Git : {n} en attente", paused: "Git : en pause", error: "Git : erreur", unavailable: "Git : absent" },
+    gitHint: "Synchronisation Git, détail dans le capteur « Synchronisation Git » et dans Paramètres → Réparations.",
     errors: {
       invalid_name: "Nom invalide : lettres minuscules, chiffres et _ uniquement (sous-dossier possible avec /).",
       symlink: "Ce chemin passe par un lien symbolique : refusé.",
@@ -129,6 +131,8 @@ const TEXTS = {
     disabledHow: "To edit configuration.yaml: install the Samba share add-on (Settings → Add-ons) if not done yet, open the “config” share from your computer, then edit the file with a text editor such as Notepad++ (UTF-8, no tabs). Make a backup first.",
     mergeMode: "“include_dir_merge_named” mode: each file must start with the package name, followed by its indented content.",
     folder: "Folder: {dir}",
+    git: { ok: "Git: up to date", pending: "Git: {n} waiting", paused: "Git: paused", error: "Git: error", unavailable: "Git: missing" },
+    gitHint: "Git synchronisation, details in the “Git synchronisation” sensor and in Settings → Repairs.",
     errors: {
       invalid_name: "Invalid name: lowercase letters, digits and _ only (subfolder allowed with /).",
       symlink: "This path goes through a symbolic link: refused.",
@@ -179,6 +183,8 @@ const STYLE = `
   .search { margin-bottom: 4px; }
   .top .version { font-size: 14px; opacity: .7; }
   .outdated { margin: 12px 16px 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .top .git { font-size: 13px; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,.18); }
+  .top .git.error, .top .git.paused { background: var(--error-color, #db4437); }
   .toolbar { position: sticky; top: -16px; z-index: 2; background: var(--card-background-color); margin: 0 -16px; padding: 4px 16px 8px; border-bottom: 1px solid var(--divider-color); }
   .toolbar .bar { margin: 8px 0 4px; }
   .results { max-height: 40vh; overflow: auto; }
@@ -512,6 +518,13 @@ class PackageKeeperPanel extends HTMLElement {
     return box;
   }
 
+  _gitChip() {
+    const git = this._state.overview?.git;
+    if (!git || git.mode === "off" || !this.t.git[git.status]) return null;
+    const text = this._fmt(this.t.git[git.status], { n: git.pending || 0 });
+    return this._el("span", { class: `git ${git.status}`, title: this.t.gitHint, text });
+  }
+
   _render() {
     if (!this._root) return;
     const t = this.t;
@@ -529,7 +542,8 @@ class PackageKeeperPanel extends HTMLElement {
     this._root.innerHTML = "";
     this._root.append(this._el("div", { class: "top" },
       this._el("span", { text: t.title }),
-      this._el("span", { class: "version", text: `v${PANEL_VERSION}` })));
+      this._el("span", { class: "version", text: `v${PANEL_VERSION}` }),
+      this._gitChip()));
     if (s.outdated) {
       this._root.append(this._el("div", { class: "msg warn outdated" },
         this._el("span", { text: `${this._fmt(t.outdated, { old: PANEL_VERSION, new: s.outdated })} ` }),

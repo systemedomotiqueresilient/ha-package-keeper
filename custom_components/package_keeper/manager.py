@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 import logging
 from pathlib import Path
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -27,6 +27,9 @@ from .const import (
     VERSION,
 )
 from .store import PackageError, PackagesSetup
+
+if TYPE_CHECKING:
+    from .git_sync import GitSync
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -89,6 +92,7 @@ class PackageManager:
         self.entry = entry
         self.config_dir = hass.config.config_dir
         self._lock = asyncio.Lock()
+        self.git: GitSync | None = None  # branché par __init__ (0.5.0)
 
     # --- lecture -----------------------------------------------------------
 
@@ -110,6 +114,7 @@ class PackageManager:
             "deleted": deleted,
             "entity_inventory": self.hass.services.has_service("entity_inventory", "validate"),
             "version": VERSION,  # le panneau compare avec la sienne (mise à jour sans rechargement)
+            "git": self.git.as_dict() if self.git else {"mode": "off", "status": "disabled"},
         }
 
     async def async_read(self, name: str) -> str:
@@ -178,6 +183,7 @@ class PackageManager:
                 return outcome
 
         outcome.ok = True
+        self._git_queue(action, name)
         await self._phone(action, name)
         return outcome
 
@@ -210,6 +216,7 @@ class PackageManager:
                 return outcome
 
         outcome.ok = True
+        self._git_queue("deleted", name)
         await self._phone("deleted", name)
         return outcome
 
@@ -261,7 +268,7 @@ class PackageManager:
                 await self._run(store.unmove_backups, self.config_dir, name, new_name, moved)
                 outcome.rolled_back, outcome.error = True, "config_invalid"
                 outcome.detail = "\n\n".join(new)
-                _LOGGER.warning(
+                _LOGGER.info(
                     "Renommage de %s annulé : la configuration ne passait plus le contrôle", name
                 )
                 await self._phone("rolled_back", name, always=True)
@@ -269,6 +276,7 @@ class PackageManager:
             await self._run(store.remove_empty_dirs, setup, name)
 
         outcome.ok = True
+        self._git_queue("renamed", new_name, name)
         await self._phone("renamed", new_name, old=name)
         return outcome
 
@@ -384,7 +392,7 @@ class PackageManager:
         outcome.rolled_back = True
         outcome.error = "config_invalid"
         outcome.detail = "\n\n".join(new)
-        _LOGGER.warning("Package %s annulé : la configuration ne passait plus le contrôle", name)
+        _LOGGER.info("Package %s annulé : la configuration ne passait plus le contrôle", name)
         await self._phone("rolled_back", name, always=True)
         return True
 
@@ -467,6 +475,11 @@ class PackageManager:
             else:
                 restart.add(domain)
         return sorted(reload), sorted(restart)
+
+    def _git_queue(self, action: str, name: str, old: str | None = None) -> None:
+        """Commit en tâche de fond, seulement après une modification ACCEPTÉE."""
+        if self.git is not None:
+            self.git.async_queue(action, name, old)
 
     async def _phone(self, key: str, name: str, *, always: bool = False, old: str = "") -> None:
         target = self.entry.data.get(CONF_ADMIN_NOTIFY_TARGET)

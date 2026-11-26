@@ -3,6 +3,17 @@
     "sensor": {
       "admin_phone": {
         "default": "mdi:cellphone-message"
+      },
+      "git_sync": {
+        "default": "mdi:source-branch",
+        "state": {
+          "disabled": "mdi:source-branch-remove",
+          "unavailable": "mdi:source-branch-remove",
+          "ok": "mdi:source-branch-check",
+          "pending": "mdi:source-branch-sync",
+          "paused": "mdi:source-branch-minus",
+          "error": "mdi:source-branch-remove"
+        }
       }
     }
   }

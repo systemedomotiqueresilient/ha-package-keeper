@@ -3,9 +3,11 @@
 Intégration Home Assistant (domaine `package_keeper`). Elle enregistre les packages YAML proposés par une IA depuis un panneau latéral réservé aux administrateurs, avec un contrôle de configuration et un retour arrière automatique. C'est le complément d'Entity Inventory, qui reste en lecture seule.
 
 ## Règles
-- **On n'écrit QUE dans le dossier des packages et dans `/config/.package_keeper/backups`.** On ne modifie jamais `configuration.yaml` : si les packages ne sont pas activés, on explique comment faire (Samba share, puis Notepad++).
+- **On n'écrit QUE dans le dossier des packages et dans `/config/.package_keeper`** (sauvegardes, et depuis la 0.5.0 le dépôt Git miroir `git/`). Un envoi Git ne part que vers le dépôt choisi par l'occupant : HTTPS privé, ou `file://` sous `/share` ou `/media`. On ne modifie jamais `configuration.yaml` : si les packages ne sont pas activés, on explique comment faire (Samba share, puis Notepad++).
 - **Toute écriture passe par `PackageManager`** : sauvegarde, écriture atomique, contrôle de configuration, puis restauration en cas de nouveau problème.
 - **Toutes les commandes WebSocket portent `@websocket_api.require_admin`.** Le panneau est enregistré avec `require_admin=True`.
+- **Dépôt Git public : refus ferme**, sans option (décision de Mathieu). Le jeton ne va jamais sur la ligne de commande ni dans un journal.
+- **Niveaux de log** : WARNING seulement pour un vrai problème à remonter (Bug Beacon en fait une réparation) ; un comportement prévu (retour arrière, échec réseau Git) est en INFO.
 - **Aucun contenu de package ni valeur de secret dans les journaux.** Le panneau insère tout texte venant d'un fichier avec `textContent`, jamais en HTML.
 - **Pas de suppression définitive** : un package supprimé est déplacé dans les sauvegardes.
 - **Aucune donnée personnelle dans le dépôt public**, ni dans les README, les tests ou les messages de commit. Les commits utilisent l'adresse GitHub noreply.

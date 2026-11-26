@@ -63,6 +63,19 @@ Le panneau **Package Keeper** apparaît dans la barre latérale, pour les admini
    - Avec `!include_dir_named`, Home Assistant nomme un package d'après son fichier **sans le dossier** : `salon/lumieres` et `cuisine/lumieres` s'écraseraient sans erreur. Package Keeper refuse donc un nom déjà porté par un autre fichier, à l'enregistrement d'un nouveau package comme au renommage.
 8. **Rechercher** : le champ au-dessus de la liste filtre par nom et par description. Sur un écran étroit, la liste devient un menu déroulant.
 
+## Synchronisation Git (0.5.0)
+
+Désactivée par défaut, elle se règle dans les options de l'intégration. Chaque modification **acceptée** (après le contrôle de configuration) devient un commit ; une modification annulée ne l'est jamais.
+
+- **Local** : dépôt miroir dans `/config/.package_keeper/git`, consultable par Samba. Le dossier des packages lui-même n'est jamais transformé en dépôt.
+- **Distant** : envoi en plus vers un dépôt **privé** GitHub, Gitea, Forgejo ou GitLab en HTTPS, avec un jeton d'accès limité à ce dépôt (lecture et écriture du contenu), ou vers un dépôt local `file:///share/…` ou `file:///media/…` (un NAS monté, par exemple).
+- **Dépôt public refusé**, sans exception : un package peut contenir un identifiant ou un mot de passe écrit en clair, par exemple par une IA qui n'aurait pas utilisé `!secret`. La visibilité est vérifiée à la configuration et avant chaque envoi ; un hébergeur dont Package Keeper ne sait pas lire la visibilité est refusé.
+- **Premier branchement** : un dépôt vide reçoit l'état initial de vos packages ; un dépôt qui contient exactement vos packages est repris tel quel ; tout autre dépôt non vide met la synchronisation en pause, avec une réparation et une notification au téléphone admin.
+- **Seuls les fichiers `.yaml` du dossier des packages** sont synchronisés. Jamais `secrets.yaml`.
+- **Ne pointez pas l'application *Git pull* sur le même dépôt** : elle réécrirait `/config` à partir de ce que Package Keeper vient d'envoyer.
+- Le capteur **Synchronisation Git** et un indicateur dans le panneau montrent l'état : à jour, commits en attente, en pause, erreur.
+- Nécessite `git`, présent dans l'image officielle de Home Assistant (HAOS, Supervised, Container).
+
 ## Téléphone admin, commun aux intégrations SDR
 
 Comme Entity Inventory, Sentinel Report, Deferred Restart et Partition Map, Package Keeper crée sa propre entité **Téléphone admin**, un capteur de diagnostic.

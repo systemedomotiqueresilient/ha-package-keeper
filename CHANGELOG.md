@@ -2,6 +2,23 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.5.0] - 2026-11-26
+
+### Ajouté
+- **Synchronisation Git** (options de l'intégration, désactivée par défaut). Elle utilise le `git` du système, présent dans l'image officielle de Home Assistant, sans dépendance Python.
+  - **Dépôt miroir** dans `/config/.package_keeper/git` : le dossier des packages n'est jamais transformé en dépôt. Seuls ses fichiers `.yaml` gérés par Package Keeper y sont copiés.
+  - **Modes** : local seul, ou local + distant en HTTPS avec un jeton (GitHub, Gitea, Forgejo, GitLab), ou vers un dépôt local `file://` sous `/share` ou `/media`.
+  - **Commit seulement après acceptation définitive** d'un enregistrement, d'une restauration, d'une suppression ou d'un renommage. Une modification annulée par le retour arrière n'est jamais commitée. Les changements faits hors Package Keeper (Samba, File Editor) sont commités à part, avant.
+  - **En tâche de fond** : une file traite les commits un par un ; le panneau n'attend pas. Un envoi raté est réessayé toutes les 15 minutes ; les commits restent gardés.
+  - **Premier branchement** : dépôt distant vide → état initial de tous les packages ; dépôt au contenu identique → historique repris ; dépôt non vide et différent → pause, réparation dans HA et notification au téléphone admin. Rien n'est commité pendant la pause.
+  - **Dépôt public : refus ferme**, sans option, à la configuration comme avant chaque envoi (API de GitHub, Gitea, Forgejo et GitLab ; un dépôt « interne » compte comme public). Une visibilité impossible à vérifier est refusée aussi. Un dépôt devenu public met la synchronisation en pause.
+  - **Jeton** : rangé dans les données de l'entrée, jamais réaffiché, jamais sur la ligne de commande (transmis à git par l'environnement), retiré de tout message d'erreur. Une adresse contenant des identifiants est refusée.
+  - **Capteur « Synchronisation Git »** (diagnostic) : désactivée, à jour, commits en attente, en pause, erreur, git absent ; attributs `pending_commits`, `last_commit`, `last_push`, `error`. Indicateur dans la barre du panneau.
+  - **Téléphone admin** : une seule notification par cause (pause, échec d'envoi), de nouveau possible après un retour à la normale.
+
+### Modifié
+- **Retour arrière automatique journalisé en INFO** (au lieu de WARNING) : c'est un comportement prévu, déjà affiché et notifié, pas un bug à remonter par Bug Beacon.
+
 ## [0.4.0] - 2026-11-24
 
 ### Ajouté

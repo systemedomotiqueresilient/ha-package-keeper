@@ -31,24 +31,81 @@
         "data": {
           "admin_notify_target": "Téléphone admin (facultatif)",
           "notify_changes": "Prévenir à chaque modification",
-          "backups_kept": "Sauvegardes conservées par package"
+          "backups_kept": "Sauvegardes conservées par package",
+          "git_mode": "Synchronisation Git"
         },
         "data_description": {
           "admin_notify_target": "Service notify.mobile_app_* ou entité notify de l'application Companion. Prérempli avec le téléphone déjà choisi dans une autre intégration SDR (Entity Inventory, Sentinel Report…), s'il y en a un.",
           "notify_changes": "Envoie une notification au téléphone admin à chaque enregistrement, suppression ou restauration d'un package. Un retour arrière automatique est toujours signalé.",
-          "backups_kept": "Au-delà, les versions les plus anciennes sont supprimées. Les sauvegardes sont rangées dans /config/.package_keeper/backups."
+          "backups_kept": "Au-delà, les versions les plus anciennes sont supprimées. Les sauvegardes sont rangées dans /config/.package_keeper/backups.",
+          "git_mode": "Désactivée : rien ne change. Locale : chaque modification acceptée est commitée dans /config/.package_keeper/git. Distante : elle est aussi envoyée vers un dépôt PRIVÉ (GitHub, Gitea, Forgejo, GitLab) ou vers un dépôt local sous /share ou /media. Nécessite git, présent dans l'image officielle de Home Assistant."
+        }
+      },
+      "git": {
+        "title": "Dépôt Git distant",
+        "description": "Seuls les fichiers .yaml du dossier des packages sont synchronisés. Un dépôt public est toujours refusé : un package peut contenir un identifiant ou un mot de passe écrit en clair. Ne pointez pas l'application Git pull sur le même dépôt.",
+        "data": {
+          "git_url": "Adresse du dépôt",
+          "git_branch": "Branche",
+          "git_username": "Nom d'utilisateur",
+          "git_token": "Jeton d'accès"
+        },
+        "data_description": {
+          "git_url": "Adresse du dépôt sur GitHub, Gitea, Forgejo ou GitLab, par exemple {example}, ou un dépôt local comme {local}. Aucun identifiant dans l'adresse.",
+          "git_branch": "Branche dans laquelle Package Keeper envoie, par exemple main.",
+          "git_username": "Nom du compte utilisé avec le jeton (n'importe quelle valeur convient pour GitHub).",
+          "git_token": "Jeton limité à ce dépôt, en lecture et écriture de son contenu. Laissez vide pour garder le jeton déjà enregistré. Il n'est jamais réaffiché."
         }
       }
     },
     "error": {
-      "invalid_target": "Indiquez un service ou une entité notify, par exemple notify.mobile_app_mon_telephone."
+      "invalid_target": "Indiquez un service ou une entité notify, par exemple notify.mobile_app_mon_telephone.",
+      "git_missing": "git n'est pas disponible sur cette installation : la synchronisation Git est impossible.",
+      "invalid_url": "Adresse invalide : https://HÔTE/COMPTE/DÉPÔT, ou file:///share/… ou file:///media/….",
+      "url_with_credentials": "Ne mettez pas d'identifiants dans l'adresse : utilisez le champ du jeton.",
+      "invalid_branch": "Nom de branche invalide.",
+      "token_required": "Un jeton d'accès est nécessaire pour un dépôt https.",
+      "public_repo": "Ce dépôt est public : refusé. Rendez-le privé ou choisissez-en un autre.",
+      "visibility_unknown": "Package Keeper ne peut pas vérifier que ce dépôt est privé (hébergeur inconnu) : refusé. Pris en charge : GitHub, Gitea, Forgejo, GitLab.",
+      "auth_failed": "Accès refusé : vérifiez le jeton et ses droits sur ce dépôt.",
+      "unreachable": "L'hébergeur est injoignable."
     }
   },
   "entity": {
     "sensor": {
       "admin_phone": {
         "name": "Téléphone admin"
+      },
+      "git_sync": {
+        "name": "Synchronisation Git",
+        "state": {
+          "disabled": "Désactivée",
+          "unavailable": "git absent",
+          "ok": "À jour",
+          "pending": "Commits en attente",
+          "paused": "En pause",
+          "error": "Erreur"
+        }
       }
+    }
+  },
+  "selector": {
+    "git_mode": {
+      "options": {
+        "off": "Désactivée",
+        "local": "Dépôt local seulement",
+        "remote": "Dépôt local + dépôt distant"
+      }
+    }
+  },
+  "issues": {
+    "git_not_empty": {
+      "title": "Package Keeper : dépôt Git distant non vide",
+      "description": "Le dépôt {url} (branche {branch}) contient déjà autre chose que vos packages actuels. Rien n'a été envoyé, et rien n'est commité tant que ce n'est pas réglé. Videz le dépôt, ou choisissez un autre dépôt ou une autre branche dans les options de Package Keeper. Si le dépôt contient exactement vos packages actuels, son historique est repris automatiquement."
+    },
+    "git_public_repo": {
+      "title": "Package Keeper : dépôt Git distant public",
+      "description": "Le dépôt {url} est public. Package Keeper n'envoie jamais vers un dépôt public : un package peut contenir un identifiant ou un mot de passe écrit en clair. Rendez-le privé, ou choisissez un autre dépôt dans les options. La synchronisation reprend seule une fois le dépôt privé."
     }
   }
 }
