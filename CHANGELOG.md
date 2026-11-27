@@ -2,6 +2,14 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.5.1] - 2026-11-27
+
+### Modifié
+- **Options en menu** : *Réglages généraux*, *Git : désactivée*, *Git : dépôt local seulement*, *Git : dépôt local + dépôt distant*. Chaque écran se termine par le bon bouton : « Valider » quand c'est le dernier, et un écran de plus seulement pour le dépôt distant (avant, le bouton « Valider » s'affichait alors qu'un écran suivait). Désactiver Git ou passer en local se fait d'un clic, sans formulaire. Passer en local oublie l'ancien jeton.
+
+### Corrigé
+- **Prise en compte des réglages Git** : l'entrée est rechargée quand les réglages Git changent réellement (mode, adresse, branche, utilisateur, jeton), une fois les options enregistrées. Avant, le rechargement pouvait partir avant l'enregistrement des options et garder les anciens réglages jusqu'au redémarrage suivant.
+
 ## [0.5.0] - 2026-11-26
 
 ### Ajouté

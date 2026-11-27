@@ -43,9 +43,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: PackageKeeperConfigEntry
     manager.git = GitSync(hass, entry, manager.async_setup_info)
     entry.runtime_data = manager
     await manager.git.async_start()
+    entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     await _async_register_panel(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+async def _async_entry_updated(hass: HomeAssistant, entry: PackageKeeperConfigEntry) -> None:
+    """Réglages Git modifiés : l'entrée est rechargée, la synchronisation repart."""
+    if entry.runtime_data.git is not None and entry.runtime_data.git.settings_changed(entry):
+        hass.config_entries.async_schedule_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: PackageKeeperConfigEntry) -> bool:

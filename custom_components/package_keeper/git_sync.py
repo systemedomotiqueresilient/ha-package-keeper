@@ -374,6 +374,17 @@ class GitSync:
 
     # --- cycle de vie ------------------------------------------------------
 
+    def settings_changed(self, entry: ConfigEntry) -> bool:
+        """Vrai si les réglages Git de l'entrée ne sont plus ceux de cette instance."""
+        options = entry.options
+        return (
+            options.get(CONF_GIT_MODE, GIT_MODE_OFF),
+            options.get(CONF_GIT_URL, "") or "",
+            options.get(CONF_GIT_BRANCH, DEFAULT_GIT_BRANCH),
+            options.get(CONF_GIT_USERNAME, DEFAULT_GIT_USERNAME),
+            entry.data.get(CONF_GIT_TOKEN, "") or "",
+        ) != (self.mode, self.url, self.branch, self.username, self._token)
+
     @property
     def enabled(self) -> bool:
         return self.mode in (GIT_MODE_LOCAL, GIT_MODE_REMOTE)

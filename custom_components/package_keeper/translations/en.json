@@ -27,18 +27,26 @@
     "step": {
       "init": {
         "title": "Package Keeper",
+        "description": "Current Git synchronisation: {mode}.\n\nLocal: every accepted change is committed in /config/.package_keeper/git. Remote: it is also pushed to a PRIVATE repository (GitHub, Gitea, Forgejo, GitLab) or to a local repository under /share or /media. Requires git, included in the official Home Assistant image.",
+        "menu_options": {
+          "general": "General settings (admin phone, notifications, backups)",
+          "git_off": "Git: off",
+          "git_local": "Git: local repository only",
+          "git_remote": "Git: local + remote repository (next screen)"
+        }
+      },
+      "general": {
+        "title": "Package Keeper",
         "description": "Saves the YAML packages proposed by an AI from a sidebar panel (administrators only), with a configuration check and automatic rollback. Package Keeper only writes to the packages folder: it never modifies configuration.yaml.",
         "data": {
           "admin_notify_target": "Admin phone (optional)",
           "notify_changes": "Notify every change",
-          "backups_kept": "Backups kept per package",
-          "git_mode": "Git synchronisation"
+          "backups_kept": "Backups kept per package"
         },
         "data_description": {
           "admin_notify_target": "A notify.mobile_app_* service or a notify entity from the Companion app. Pre-filled with the phone already chosen in another SDR integration (Entity Inventory, Sentinel Report…), if any.",
           "notify_changes": "Sends a notification to the admin phone each time a package is saved, deleted or restored. An automatic rollback is always notified.",
-          "backups_kept": "Older versions are deleted beyond this number. Backups are stored in /config/.package_keeper/backups.",
-          "git_mode": "Off: nothing changes. Local: every accepted change is committed in /config/.package_keeper/git. Remote: also pushed to a PRIVATE repository (GitHub, Gitea, Forgejo, GitLab) or to a local repository under /share or /media. Requires git, included in the official Home Assistant image."
+          "backups_kept": "Older versions are deleted beyond this number. Backups are stored in /config/.package_keeper/backups."
         }
       },
       "git": {
@@ -60,7 +68,6 @@
     },
     "error": {
       "invalid_target": "Enter a notify service or entity, e.g. notify.mobile_app_my_phone.",
-      "git_missing": "git is not available on this installation: Git synchronisation is not possible.",
       "invalid_url": "Invalid address: https://HOST/ACCOUNT/REPOSITORY, or file:///share/… or file:///media/….",
       "url_with_credentials": "Do not put credentials in the address: use the token field.",
       "invalid_branch": "Invalid branch name.",
@@ -69,6 +76,9 @@
       "visibility_unknown": "Package Keeper cannot check that this repository is private (unknown host): refused. Supported: GitHub, Gitea, Forgejo, GitLab.",
       "auth_failed": "Access refused: check the token and its rights on this repository.",
       "unreachable": "The host cannot be reached."
+    },
+    "abort": {
+      "git_missing": "git is not available on this installation: Git synchronisation is not possible."
     }
   },
   "entity": {
@@ -86,15 +96,6 @@
           "paused": "Paused",
           "error": "Error"
         }
-      }
-    }
-  },
-  "selector": {
-    "git_mode": {
-      "options": {
-        "off": "Off",
-        "local": "Local repository only",
-        "remote": "Local repository + remote repository"
       }
     }
   },

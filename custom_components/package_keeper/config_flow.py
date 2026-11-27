@@ -87,6 +87,24 @@ def _split(user_input: dict[str, Any]) -> tuple[dict[str, Any], str | None, dict
     return values, normalize_target(raw), errors
 
 
+_MODE_LABELS = {
+    "fr": {
+        GIT_MODE_OFF: "désactivée",
+        GIT_MODE_LOCAL: "dépôt local seulement",
+        GIT_MODE_REMOTE: "dépôt local + dépôt distant",
+    },
+    "en": {
+        GIT_MODE_OFF: "off",
+        GIT_MODE_LOCAL: "local repository only",
+        GIT_MODE_REMOTE: "local + remote repository",
+    },
+}
+
+
+def _lang(hass: HomeAssistant) -> str:
+    return "fr" if (hass.config.language or "").startswith("fr") else "en"
+
+
 class PackageKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
     """Ajout depuis l'interface (une seule instance)."""
 
@@ -113,20 +131,6 @@ class PackageKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
         return PackageKeeperOptionsFlow()
 
 
-def _git_mode_schema(options: dict[str, Any]) -> dict:
-    return {
-        vol.Required(
-            CONF_GIT_MODE, default=options.get(CONF_GIT_MODE, GIT_MODE_OFF)
-        ): SelectSelector(
-            SelectSelectorConfig(
-                options=[GIT_MODE_OFF, GIT_MODE_LOCAL, GIT_MODE_REMOTE],
-                translation_key="git_mode",
-                mode=SelectSelectorMode.LIST,
-            )
-        )
-    }
-
-
 def _git_remote_schema(options: dict[str, Any]) -> vol.Schema:
     return vol.Schema(
         {
@@ -148,7 +152,12 @@ def _git_remote_schema(options: dict[str, Any]) -> vol.Schema:
 
 
 class PackageKeeperOptionsFlow(OptionsFlow):
-    """Réglages ; un changement recharge l'entrée (la synchronisation Git repart)."""
+    """Menu des réglages ; un changement recharge l'entrée (la synchronisation Git repart).
+
+    Un menu plutôt qu'un choix dans le formulaire : chaque écran se termine par le
+    bon bouton (« Valider » quand c'est le dernier, un écran de plus seulement pour
+    le dépôt distant).
+    """
 
     def __init__(self) -> None:
         self._options: dict[str, Any] = {}
@@ -156,25 +165,57 @@ class PackageKeeperOptionsFlow(OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         entry = self.config_entry
-        target = normalize_target(entry.data.get(CONF_ADMIN_NOTIFY_TARGET))
+        self._options = dict(entry.options)
+        self._target = normalize_target(entry.data.get(CONF_ADMIN_NOTIFY_TARGET))
+        mode = entry.options.get(CONF_GIT_MODE, GIT_MODE_OFF)
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["general", "git_off", "git_local", "git_remote"],
+            description_placeholders={"mode": _MODE_LABELS[_lang(self.hass)][mode]},
+        )
+
+    async def async_step_general(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Téléphone admin, notifications, sauvegardes."""
         errors: dict[str, str] = {}
         if user_input is not None:
             options, target, errors = _split(user_input)
-            mode = options.get(CONF_GIT_MODE, GIT_MODE_OFF)
-            if mode != GIT_MODE_OFF and not await self.hass.async_add_executor_job(git_available):
-                errors[CONF_GIT_MODE] = "git_missing"
             if not errors:
-                self._options = {**entry.options, **options}
+                self._options |= options
                 self._target = target
-                if mode == GIT_MODE_REMOTE:
-                    return await self.async_step_git()
-                for key in (CONF_GIT_URL, CONF_GIT_BRANCH, CONF_GIT_USERNAME):
-                    self._options.pop(key, None)
-                return self._finish(token=None if mode == GIT_MODE_LOCAL else "")
-        schema = _schema(self.hass, dict(entry.options), target).extend(
-            _git_mode_schema(dict(entry.options))
+                return self._finish(token=None)
+        return self.async_show_form(
+            step_id="general",
+            data_schema=_schema(self.hass, self._options, self._target),
+            errors=errors,
         )
-        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+
+    async def async_step_git_off(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        return self._set_mode(GIT_MODE_OFF)
+
+    async def async_step_git_local(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if not await self.hass.async_add_executor_job(git_available):
+            return self.async_abort(reason="git_missing")
+        return self._set_mode(GIT_MODE_LOCAL)
+
+    async def async_step_git_remote(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if not await self.hass.async_add_executor_job(git_available):
+            return self.async_abort(reason="git_missing")
+        return await self.async_step_git()
+
+    def _set_mode(self, mode: str) -> ConfigFlowResult:
+        """Désactivé ou local : plus de dépôt distant ni de jeton gardés."""
+        self._options[CONF_GIT_MODE] = mode
+        for key in (CONF_GIT_URL, CONF_GIT_BRANCH, CONF_GIT_USERNAME):
+            self._options.pop(key, None)
+        return self._finish(token="")
 
     async def async_step_git(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Dépôt distant : adresse, branche, identifiant, jeton ; refus ferme d'un dépôt public."""
@@ -200,6 +241,7 @@ class PackageKeeperOptionsFlow(OptionsFlow):
                 errors["base"] = err.code
             else:
                 self._options |= {
+                    CONF_GIT_MODE: GIT_MODE_REMOTE,
                     CONF_GIT_URL: url,
                     CONF_GIT_BRANCH: branch,
                     CONF_GIT_USERNAME: username or DEFAULT_GIT_USERNAME,
@@ -216,13 +258,12 @@ class PackageKeeperOptionsFlow(OptionsFlow):
         )
 
     def _finish(self, token: str | None) -> ConfigFlowResult:
-        """token None = inchangé ; "" = effacé (mode désactivé)."""
+        """token None = inchangé ; "" = effacé (Git désactivé ou local)."""
+        self._options.setdefault(CONF_GIT_MODE, GIT_MODE_OFF)
         data = {**self.config_entry.data, CONF_ADMIN_NOTIFY_TARGET: self._target}
         if token is not None:
             data[CONF_GIT_TOKEN] = token
             if not token:
                 data.pop(CONF_GIT_TOKEN)
         self.hass.config_entries.async_update_entry(self.config_entry, data=data)
-        # La synchronisation Git repart avec les nouveaux réglages
-        self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
         return self.async_create_entry(data=self._options)

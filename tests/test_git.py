@@ -307,7 +307,7 @@ async def test_options_remote_refuses_public(
     entry = await _entry(hass)
     result = await hass.config_entries.options.async_init(entry.entry_id)
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {"notify_changes": True, "backups_kept": 3, "git_mode": "remote"}
+        result["flow_id"], {"next_step_id": "git_remote"}
     )
     assert result["step_id"] == "git"
     fields = {"git_branch": "main", "git_username": "git"}
@@ -328,6 +328,8 @@ async def test_options_remote_refuses_public(
     )
     assert done["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options["git_url"] == "https://github.com/moi/prive"
+    assert entry.options["git_mode"] == "remote"
+    assert entry.options["notify_changes"] is False  # réglages généraux inchangés
     assert entry.data["git_token"] == "jeton-secret"
     assert "jeton-secret" not in str(dict(entry.options))
 
@@ -337,22 +339,40 @@ async def test_options_git_missing(hass: HomeAssistant, config_dir: Path, monkey
 
     monkeypatch.setattr(config_flow, "git_available", lambda: False)
     entry = await _entry(hass)
-    result = await hass.config_entries.options.async_init(entry.entry_id)
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {"notify_changes": True, "backups_kept": 3, "git_mode": "local"}
-    )
-    assert result["errors"] == {"git_mode": "git_missing"}
+    for step in ("git_local", "git_remote"):
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {"next_step_id": step}
+        )
+        assert result["type"] is FlowResultType.ABORT and result["reason"] == "git_missing"
 
 
 async def test_options_back_to_off_forgets_token(hass: HomeAssistant, config_dir: Path) -> None:
     entry = await _entry(hass)
     hass.config_entries.async_update_entry(entry, data={**entry.data, "git_token": "x"})
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    await hass.config_entries.options.async_configure(
-        result["flow_id"], {"notify_changes": True, "backups_kept": 3, "git_mode": "off"}
+    done = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "git_off"}
     )
+    assert done["type"] is FlowResultType.CREATE_ENTRY  # pas d'écran : rien à remplir
     await hass.async_block_till_done()
     assert "git_token" not in entry.data
+    assert entry.options["git_mode"] == "off"
+
+
+async def test_options_local_mode_from_menu(hass: HomeAssistant, config_dir: Path) -> None:
+    entry = await _entry(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    done = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "git_local"}
+    )
+    assert done["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert entry.options["git_mode"] == "local"
+    git = entry.runtime_data.git
+    await git.async_wait_idle()
+    assert git.mode == "local", (git.mode, git.status, git.error)
+    assert (config_dir / ".package_keeper" / "git" / ".git").is_dir(), (git.status, git.error)
 
 
 async def test_turned_public_pauses(hass: HomeAssistant, config_dir: Path, monkeypatch) -> None:

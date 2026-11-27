@@ -158,7 +158,13 @@ async def test_config_flow_prefilled_from_sibling(hass: HomeAssistant, config_di
 
     # Options : la valeur reste dans entry.data, le capteur suit
     result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.MENU
+    assert result["menu_options"] == ["general", "git_off", "git_local", "git_remote"]
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "general"}
+    )
     assert _suggested(result) == MOBILE
+    assert result.get("last_step") is not False  # bouton « Valider »
     await hass.config_entries.options.async_configure(
         result["flow_id"], {"notify_changes": False, "backups_kept": 3}
     )
