@@ -1,6 +1,8 @@
 # Feuille de route
 
 ## Fait
+- **0.5.2** : modifications faites hors Package Keeper commitées sans attendre (inotify, délai réglable de 30 s minimum, relecture de secours).
+- **0.5.1** : options en menu.
 - **0.5.0** : synchronisation Git (dépôt miroir, local ou distant privé, premier branchement automatique, refus ferme des dépôts publics).
 - **0.4.0** : renommer un package (historique inclus, contrôle et retour arrière), refus des noms de package en conflit et du nom `secrets`.
 - **0.1.0** : panneau réservé aux administrateurs, enregistrement contrôlé avec retour arrière automatique, historique et restauration, suppression restaurable, avis d'Entity Inventory, téléphone admin.

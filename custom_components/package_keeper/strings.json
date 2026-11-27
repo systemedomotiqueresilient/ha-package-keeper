@@ -7,12 +7,14 @@
         "data": {
           "admin_notify_target": "Admin phone (optional)",
           "notify_changes": "Notify every change",
-          "backups_kept": "Backups kept per package"
+          "backups_kept": "Backups kept per package",
+          "git_debounce": "Delay before committing changes made outside Package Keeper (Git)"
         },
         "data_description": {
           "admin_notify_target": "A notify.mobile_app_* service or a notify entity from the Companion app. Pre-filled with the phone already chosen in another SDR integration (Entity Inventory, Sentinel Report…), if any.",
           "notify_changes": "Sends a notification to the admin phone each time a package is saved, deleted or restored. An automatic rollback is always notified.",
-          "backups_kept": "Older versions are deleted beyond this number. Backups are stored in /config/.package_keeper/backups."
+          "backups_kept": "Older versions are deleted beyond this number. Backups are stored in /config/.package_keeper/backups.",
+          "git_debounce": "Only used when Git synchronisation is on. A change made with Samba, File Editor or another editor is committed after this many seconds without any new write. Minimum 30 seconds, and it cannot be lowered: an editor often saves a file in several steps, and each check re-reads every package; a shorter delay would create several commits for a single change, and a program that rewrites a file continuously would keep Git busy in a loop, at the cost of needless CPU load."
         }
       }
     },
@@ -41,12 +43,14 @@
         "data": {
           "admin_notify_target": "Admin phone (optional)",
           "notify_changes": "Notify every change",
-          "backups_kept": "Backups kept per package"
+          "backups_kept": "Backups kept per package",
+          "git_debounce": "Delay before committing changes made outside Package Keeper (Git)"
         },
         "data_description": {
           "admin_notify_target": "A notify.mobile_app_* service or a notify entity from the Companion app. Pre-filled with the phone already chosen in another SDR integration (Entity Inventory, Sentinel Report…), if any.",
           "notify_changes": "Sends a notification to the admin phone each time a package is saved, deleted or restored. An automatic rollback is always notified.",
-          "backups_kept": "Older versions are deleted beyond this number. Backups are stored in /config/.package_keeper/backups."
+          "backups_kept": "Older versions are deleted beyond this number. Backups are stored in /config/.package_keeper/backups.",
+          "git_debounce": "Only used when Git synchronisation is on. A change made with Samba, File Editor or another editor is committed after this many seconds without any new write. Minimum 30 seconds, and it cannot be lowered: an editor often saves a file in several steps, and each check re-reads every package; a shorter delay would create several commits for a single change, and a program that rewrites a file continuously would keep Git busy in a loop, at the cost of needless CPU load."
         }
       },
       "git": {

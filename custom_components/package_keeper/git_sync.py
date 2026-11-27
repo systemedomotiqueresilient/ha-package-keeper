@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -46,23 +47,29 @@ from . import store
 from .admin_phone import CONF_ADMIN_NOTIFY_TARGET, async_notify_admin
 from .const import (
     CONF_GIT_BRANCH,
+    CONF_GIT_DEBOUNCE,
     CONF_GIT_MODE,
     CONF_GIT_TOKEN,
     CONF_GIT_URL,
     CONF_GIT_USERNAME,
     DEFAULT_GIT_BRANCH,
+    DEFAULT_GIT_DEBOUNCE,
     DEFAULT_GIT_USERNAME,
     DOMAIN,
     GIT_DIR,
     GIT_MODE_LOCAL,
     GIT_MODE_OFF,
     GIT_MODE_REMOTE,
+    MAX_GIT_DEBOUNCE,
+    MIN_GIT_DEBOUNCE,
 )
+from .watcher import PackagesWatcher, WatchUnavailable, list_dirs
 
 _LOGGER = logging.getLogger(__name__)
 
 SIGNAL_GIT_UPDATED = f"{DOMAIN}_git_updated"
 RETRY_INTERVAL = timedelta(minutes=15)
+POLL_INTERVAL = timedelta(minutes=15)  # relecture si inotify est indisponible
 _GIT_TIMEOUT = 120
 _API_TIMEOUT = aiohttp.ClientTimeout(total=15)
 _AUTHOR = ("Package Keeper", "package_keeper@homeassistant.local")
@@ -155,6 +162,16 @@ class _Job:
     message: str
     paths: list[str] = field(default_factory=list)  # fichiers concernés, relatifs (x/y.yaml)
     prepare: bool = False  # premier passage : dépôt miroir et branchement au distant
+    claimed: bool = False  # fichiers réservés, libérés une fois le commit fait
+
+
+def debounce_seconds(options: Any) -> int:
+    """Délai de calme réglé, jamais sous le minimum (30 s)."""
+    try:
+        value = int(options.get(CONF_GIT_DEBOUNCE, DEFAULT_GIT_DEBOUNCE))
+    except (TypeError, ValueError):
+        value = DEFAULT_GIT_DEBOUNCE
+    return min(max(value, MIN_GIT_DEBOUNCE), MAX_GIT_DEBOUNCE)
 
 
 def git_available() -> bool:
@@ -361,6 +378,11 @@ class GitSync:
         self.branch: str = entry.options.get(CONF_GIT_BRANCH, DEFAULT_GIT_BRANCH)
         self.username: str = entry.options.get(CONF_GIT_USERNAME, DEFAULT_GIT_USERNAME)
         self._token: str = entry.data.get(CONF_GIT_TOKEN, "") or ""
+        self.debounce = debounce_seconds(entry.options)
+        self.watch: str | None = None  # « inotify » ou « poll » quand la surveillance tourne
+        self._watcher: PackagesWatcher | None = None
+        self._claims: Counter[str] = Counter()  # fichiers réservés par le panneau
+        self._unsub_poll: Callable[[], None] | None = None
         self.status = STATUS_DISABLED
         self.error: str | None = None
         self.last_commit: str | None = None
@@ -383,7 +405,8 @@ class GitSync:
             options.get(CONF_GIT_BRANCH, DEFAULT_GIT_BRANCH),
             options.get(CONF_GIT_USERNAME, DEFAULT_GIT_USERNAME),
             entry.data.get(CONF_GIT_TOKEN, "") or "",
-        ) != (self.mode, self.url, self.branch, self.username, self._token)
+            debounce_seconds(options),
+        ) != (self.mode, self.url, self.branch, self.username, self._token, self.debounce)
 
     @property
     def enabled(self) -> bool:
@@ -412,8 +435,40 @@ class GitSync:
             self._unsub_retry = async_track_time_interval(
                 self.hass, self._async_retry, RETRY_INTERVAL
             )
+        await self._async_watch()
+
+    async def _async_watch(self) -> None:
+        """Modifications faites hors Package Keeper : inotify, sinon relecture périodique."""
+        setup = await self._setup_getter()
+        if not setup.enabled:
+            return
+        folders = await self.hass.async_add_executor_job(list_dirs, setup.directory)
+        watcher = PackagesWatcher(self.hass.loop, self.debounce, self._on_external)
+        try:
+            watcher.start(folders)
+        except WatchUnavailable as err:
+            _LOGGER.info("inotify indisponible (%s) : relecture toutes les 15 minutes", err)
+            self.watch = "poll"
+            self._unsub_poll = async_track_time_interval(self.hass, self._async_poll, POLL_INTERVAL)
+        else:
+            self._watcher = watcher
+            self.watch = "inotify"
+
+    @callback
+    def _on_external(self) -> None:
+        if self._worker is not None:
+            self._queue.put_nowait(_Job(self._text("external")))
+
+    async def _async_poll(self, _now: datetime | None = None) -> None:
+        self._on_external()
 
     async def async_stop(self) -> None:
+        if self._watcher:
+            self._watcher.stop()
+            self._watcher = None
+        if self._unsub_poll:
+            self._unsub_poll()
+            self._unsub_poll = None
         if self._unsub_retry:
             self._unsub_retry()
             self._unsub_retry = None
@@ -427,7 +482,26 @@ class GitSync:
         if not self.enabled or self._worker is None:
             return
         paths = [f"{name}.yaml"] + ([f"{old}.yaml"] if old else [])
-        self._queue.put_nowait(_Job(self._text(action).format(name=name, old=old), paths))
+        self._claims.update(paths)  # réservés jusqu'à leur commit
+        message = self._text(action).format(name=name, old=old)
+        self._queue.put_nowait(_Job(message, paths, claimed=True))
+
+    @callback
+    def hold(self, *names: str) -> list[str]:
+        """Réserve ces packages pendant une écriture du panneau ; renvoie les chemins."""
+        paths = []
+        for name in names:
+            try:
+                paths.append(f"{store.canonical(name)}.yaml")
+            except store.PackageError:
+                continue
+        self._claims.update(paths)
+        return paths
+
+    @callback
+    def release(self, paths: list[str]) -> None:
+        self._claims.subtract(paths)
+        self._claims = +self._claims  # retire les compteurs à zéro
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -437,6 +511,8 @@ class GitSync:
             "pending": self.pending,
             "last_commit": self.last_commit,
             "last_push": self.last_push,
+            "watch": self.watch,
+            "debounce": self.debounce,
         }
 
     # --- tâche de fond -----------------------------------------------------
@@ -455,6 +531,8 @@ class GitSync:
             except OSError as err:
                 self._fail(GitError("git_failed", type(err).__name__))
             finally:
+                if job.claimed:
+                    self.release(job.paths)
                 self._queue.task_done()
 
     async def async_wait_idle(self) -> None:
@@ -534,8 +612,10 @@ class GitSync:
             return
         if self.status == STATUS_PAUSED:
             await self._check_visibility()  # dépôt rendu privé entre-temps ?
-        # 1) ce qui a changé ailleurs (Samba, File Editor…), à part
-        await self._async_commit(self._text("external"), only=None, skip=set(job.paths))
+        # 1) ce qui a changé ailleurs (Samba, File Editor…), à part ; jamais un fichier
+        #    que le panneau est en train d'écrire ou dont le commit est en attente
+        skip = set(job.paths) | {path for path, count in self._claims.items() if count > 0}
+        await self._async_commit(self._text("external"), only=None, skip=skip)
         # 2) la modification elle-même
         await self._async_commit(job.message, only=set(job.paths), skip=set())
         await self._async_push()

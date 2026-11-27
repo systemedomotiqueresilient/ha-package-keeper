@@ -73,6 +73,7 @@ Off by default, it is set in the integration options. Every **accepted** change 
 - **First connection**: an empty repository receives the initial state of your packages; a repository holding exactly your packages is taken over as is; any other non-empty repository pauses the synchronisation, with a repair and a notification to the admin phone.
 - **Only the `.yaml` files of the packages folder** are synchronised. Never `secrets.yaml`.
 - **Do not point the *Git pull* app at the same repository**: it would rewrite `/config` from what Package Keeper has just pushed.
+- **Changes made outside Package Keeper** (Samba, File Editor…): detected right away by inotify and committed separately, as “Changes made outside Package Keeper”, after an adjustable quiet delay (30 seconds minimum, without exception, so as not to multiply commits or keep Git busy in a loop). If inotify is unavailable, files are re-read every 15 minutes.
 - The **Git synchronisation** sensor and an indicator in the panel show the state: up to date, commits waiting, paused, error.
 - Requires `git`, included in the official Home Assistant image (HAOS, Supervised, Container).
 

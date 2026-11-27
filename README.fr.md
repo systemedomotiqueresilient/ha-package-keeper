@@ -73,6 +73,7 @@ Désactivée par défaut, elle se règle dans les options de l'intégration. Cha
 - **Premier branchement** : un dépôt vide reçoit l'état initial de vos packages ; un dépôt qui contient exactement vos packages est repris tel quel ; tout autre dépôt non vide met la synchronisation en pause, avec une réparation et une notification au téléphone admin.
 - **Seuls les fichiers `.yaml` du dossier des packages** sont synchronisés. Jamais `secrets.yaml`.
 - **Ne pointez pas l'application *Git pull* sur le même dépôt** : elle réécrirait `/config` à partir de ce que Package Keeper vient d'envoyer.
+- **Modifications faites hors Package Keeper** (Samba, File Editor…) : détectées tout de suite par inotify et commitées à part, sous « Modifications hors Package Keeper », après un délai de calme réglable (30 secondes minimum, sans exception, pour ne pas multiplier les commits ni faire tourner Git en boucle). Si inotify est indisponible, relecture toutes les 15 minutes.
 - Le capteur **Synchronisation Git** et un indicateur dans le panneau montrent l'état : à jour, commits en attente, en pause, erreur.
 - Nécessite `git`, présent dans l'image officielle de Home Assistant (HAOS, Supervised, Container).
 

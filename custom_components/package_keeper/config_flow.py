@@ -34,6 +34,7 @@ from .admin_phone import (
 from .const import (
     CONF_BACKUPS_KEPT,
     CONF_GIT_BRANCH,
+    CONF_GIT_DEBOUNCE,
     CONF_GIT_MODE,
     CONF_GIT_TOKEN,
     CONF_GIT_URL,
@@ -41,14 +42,24 @@ from .const import (
     CONF_NOTIFY_CHANGES,
     DEFAULT_BACKUPS_KEPT,
     DEFAULT_GIT_BRANCH,
+    DEFAULT_GIT_DEBOUNCE,
     DEFAULT_GIT_USERNAME,
     DEFAULT_NOTIFY_CHANGES,
     DOMAIN,
     GIT_MODE_LOCAL,
     GIT_MODE_OFF,
     GIT_MODE_REMOTE,
+    MAX_GIT_DEBOUNCE,
+    MIN_GIT_DEBOUNCE,
 )
-from .git_sync import GitError, async_visibility, git_available, validate_branch, validate_remote
+from .git_sync import (
+    GitError,
+    async_visibility,
+    debounce_seconds,
+    git_available,
+    validate_branch,
+    validate_remote,
+)
 
 
 def _schema(hass: HomeAssistant, options: dict[str, Any], target: str | None) -> vol.Schema:
@@ -72,6 +83,18 @@ def _schema(hass: HomeAssistant, options: dict[str, Any], target: str | None) ->
             ): NumberSelector(
                 NumberSelectorConfig(min=1, max=50, step=1, mode=NumberSelectorMode.BOX)
             ),
+            vol.Required(
+                CONF_GIT_DEBOUNCE,
+                default=options.get(CONF_GIT_DEBOUNCE, DEFAULT_GIT_DEBOUNCE),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=MIN_GIT_DEBOUNCE,
+                    max=MAX_GIT_DEBOUNCE,
+                    step=1,
+                    unit_of_measurement="s",
+                    mode=NumberSelectorMode.BOX,
+                )
+            ),
         }
     )
 
@@ -84,6 +107,8 @@ def _split(user_input: dict[str, Any]) -> tuple[dict[str, Any], str | None, dict
     if raw and str(raw).strip() and not is_valid_target(raw):
         errors[CONF_ADMIN_NOTIFY_TARGET] = "invalid_target"
     values[CONF_BACKUPS_KEPT] = int(values.get(CONF_BACKUPS_KEPT, DEFAULT_BACKUPS_KEPT))
+    if CONF_GIT_DEBOUNCE in values:  # jamais sous 30 s, même si le formulaire est contourné
+        values[CONF_GIT_DEBOUNCE] = debounce_seconds(values)
     return values, normalize_target(raw), errors
 
 

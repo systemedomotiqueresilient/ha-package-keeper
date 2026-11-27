@@ -2,6 +2,14 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.5.2] - 2026-11-27
+
+### Ajouté
+- **Modifications faites hors Package Keeper commitées sans attendre** (Samba, File Editor, VS Code…), quand la synchronisation Git est active. Le dossier des packages et ses sous-dossiers, y compris ceux créés après coup, sont surveillés par **inotify**, appelé directement dans la libc (glibc ou musl), sans dépendance. Seuls les fichiers `.yaml` non cachés comptent. Le commit « Modifications hors Package Keeper » part après un **délai de calme** : une série d'écritures rapprochées donne un seul commit.
+- **Délai réglable** dans *Réglages généraux* (et à l'installation) : 30 secondes par défaut, **30 secondes au minimum, sans exception** (refusé par le formulaire, et ramené à 30 s s'il est contourné), une heure au maximum. Explication affichée : un éditeur enregistre souvent en plusieurs étapes et chaque contrôle relit tous les packages ; plus court, on aurait plusieurs commits pour une modification, et un programme qui réécrit un fichier en continu ferait tourner Git en boucle.
+- **Repli automatique** sur une relecture toutes les 15 minutes si inotify est indisponible (limite de surveillances du système atteinte, par exemple). Le capteur *Synchronisation Git* indique `watch` (`inotify` ou `poll`) et `debounce_seconds`.
+- **Fichiers réservés** : un fichier en cours d'écriture par le panneau, ou dont le commit est en attente, n'est jamais pris pour une modification extérieure. Son commit garde son propre message, même si le contrôle de configuration dure plus longtemps que le délai.
+
 ## [0.5.1] - 2026-11-27
 
 ### Modifié

@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 import logging
 from pathlib import Path
@@ -133,6 +134,12 @@ class PackageManager:
         self, name: str, text: str, *, dry_run: bool = False, action: str = "saved"
     ) -> Outcome:
         """Vérifie puis (sauf dry_run) enregistre ; annule si la configuration casse."""
+        if dry_run:
+            return await self._async_save(name, text, dry_run=True, action=action)
+        with self._git_hold(name):
+            return await self._async_save(name, text, dry_run=False, action=action)
+
+    async def _async_save(self, name: str, text: str, *, dry_run: bool, action: str) -> Outcome:
         outcome = Outcome(ok=False, name=name, action="checked" if dry_run else action)
         try:
             setup = await self._enabled_setup()
@@ -188,6 +195,10 @@ class PackageManager:
         return outcome
 
     async def async_delete(self, name: str) -> Outcome:
+        with self._git_hold(name):
+            return await self._async_delete(name)
+
+    async def _async_delete(self, name: str) -> Outcome:
         outcome = Outcome(ok=False, name=name, action="deleted")
         try:
             setup = await self._enabled_setup()
@@ -221,6 +232,10 @@ class PackageManager:
         return outcome
 
     async def async_rename(self, name: str, new_name: str) -> Outcome:
+        with self._git_hold(name, new_name):
+            return await self._async_rename(name, new_name)
+
+    async def _async_rename(self, name: str, new_name: str) -> Outcome:
         """Renomme (ou déplace dans un sous-dossier) un package, sans toucher à son contenu.
 
         Le fichier et son historique de sauvegardes suivent. Les entités ne
@@ -475,6 +490,19 @@ class PackageManager:
             else:
                 restart.add(domain)
         return sorted(reload), sorted(restart)
+
+    @contextmanager
+    def _git_hold(self, *names: str) -> Iterator[None]:
+        """Pendant une écriture du panneau, la surveillance ne la prend pas pour une
+        modification faite ailleurs : le fichier est réservé jusqu'à son propre commit."""
+        if self.git is None:
+            yield
+            return
+        paths = self.git.hold(*names)
+        try:
+            yield
+        finally:
+            self.git.release(paths)
 
     def _git_queue(self, action: str, name: str, old: str | None = None) -> None:
         """Commit en tâche de fond, seulement après une modification ACCEPTÉE."""

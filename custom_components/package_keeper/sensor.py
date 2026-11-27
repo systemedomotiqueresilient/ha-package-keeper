@@ -100,6 +100,8 @@ class GitSyncSensor(SensorEntity):
             "pending_commits": info["pending"],
             "last_commit": info["last_commit"],
             "last_push": info["last_push"],
+            "watch": info["watch"],
+            "debounce_seconds": info["debounce"],
         }
 
     async def async_added_to_hass(self) -> None:

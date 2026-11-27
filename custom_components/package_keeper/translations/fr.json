@@ -7,12 +7,14 @@
         "data": {
           "admin_notify_target": "Téléphone admin (facultatif)",
           "notify_changes": "Prévenir à chaque modification",
-          "backups_kept": "Sauvegardes conservées par package"
+          "backups_kept": "Sauvegardes conservées par package",
+          "git_debounce": "Délai avant de commiter les modifications faites hors Package Keeper (Git)"
         },
         "data_description": {
           "admin_notify_target": "Service notify.mobile_app_* ou entité notify de l'application Companion. Prérempli avec le téléphone déjà choisi dans une autre intégration SDR (Entity Inventory, Sentinel Report…), s'il y en a un.",
           "notify_changes": "Envoie une notification au téléphone admin à chaque enregistrement, suppression ou restauration d'un package. Un retour arrière automatique est toujours signalé.",
-          "backups_kept": "Au-delà, les versions les plus anciennes sont supprimées. Les sauvegardes sont rangées dans /config/.package_keeper/backups."
+          "backups_kept": "Au-delà, les versions les plus anciennes sont supprimées. Les sauvegardes sont rangées dans /config/.package_keeper/backups.",
+          "git_debounce": "Utilisé seulement si la synchronisation Git est active. Une modification faite par Samba, File Editor ou un autre éditeur est commitée après ce nombre de secondes sans nouvelle écriture. 30 secondes minimum, sans possibilité de descendre plus bas : un éditeur enregistre souvent un fichier en plusieurs étapes, et chaque contrôle relit tous les packages ; un délai plus court donnerait plusieurs commits pour une seule modification, et un programme qui réécrit un fichier en continu ferait tourner Git en boucle, avec une charge processeur inutile."
         }
       }
     },
@@ -41,12 +43,14 @@
         "data": {
           "admin_notify_target": "Téléphone admin (facultatif)",
           "notify_changes": "Prévenir à chaque modification",
-          "backups_kept": "Sauvegardes conservées par package"
+          "backups_kept": "Sauvegardes conservées par package",
+          "git_debounce": "Délai avant de commiter les modifications faites hors Package Keeper (Git)"
         },
         "data_description": {
           "admin_notify_target": "Service notify.mobile_app_* ou entité notify de l'application Companion. Prérempli avec le téléphone déjà choisi dans une autre intégration SDR (Entity Inventory, Sentinel Report…), s'il y en a un.",
           "notify_changes": "Envoie une notification au téléphone admin à chaque enregistrement, suppression ou restauration d'un package. Un retour arrière automatique est toujours signalé.",
-          "backups_kept": "Au-delà, les versions les plus anciennes sont supprimées. Les sauvegardes sont rangées dans /config/.package_keeper/backups."
+          "backups_kept": "Au-delà, les versions les plus anciennes sont supprimées. Les sauvegardes sont rangées dans /config/.package_keeper/backups.",
+          "git_debounce": "Utilisé seulement si la synchronisation Git est active. Une modification faite par Samba, File Editor ou un autre éditeur est commitée après ce nombre de secondes sans nouvelle écriture. 30 secondes minimum, sans possibilité de descendre plus bas : un éditeur enregistre souvent un fichier en plusieurs étapes, et chaque contrôle relit tous les packages ; un délai plus court donnerait plusieurs commits pour une seule modification, et un programme qui réécrit un fichier en continu ferait tourner Git en boucle, avec une charge processeur inutile."
         }
       },
       "git": {

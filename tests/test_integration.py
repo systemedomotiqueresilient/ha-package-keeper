@@ -144,7 +144,7 @@ async def test_config_flow_prefilled_from_sibling(hass: HomeAssistant, config_di
     assert result["type"] is FlowResultType.CREATE_ENTRY
     entry = result["result"]
     assert entry.data == {CONF_ADMIN_NOTIFY_TARGET: MOBILE}
-    assert entry.options == {"notify_changes": True, "backups_kept": 5}
+    assert entry.options == {"notify_changes": True, "backups_kept": 5, "git_debounce": 30}
     await hass.async_block_till_done()
 
     sensor_id = er.async_get(hass).async_get_entity_id(
@@ -170,7 +170,12 @@ async def test_config_flow_prefilled_from_sibling(hass: HomeAssistant, config_di
     )
     await hass.async_block_till_done()
     assert entry.data[CONF_ADMIN_NOTIFY_TARGET] is None
-    assert entry.options == {"notify_changes": False, "backups_kept": 3, "git_mode": "off"}
+    assert entry.options == {
+        "notify_changes": False,
+        "backups_kept": 3,
+        "git_debounce": 30,
+        "git_mode": "off",
+    }
     assert hass.states.get(sensor_id).state == "unknown"
 
 

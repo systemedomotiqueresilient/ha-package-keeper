@@ -3,7 +3,7 @@
 from typing import Final
 
 DOMAIN: Final = "package_keeper"
-VERSION: Final = "0.5.1"  # identique à manifest.json et au fichier VERSION
+VERSION: Final = "0.5.2"  # identique à manifest.json et au fichier VERSION
 
 # Panneau latéral
 PANEL_URL_PATH: Final = "package-keeper"
@@ -34,3 +34,9 @@ DEFAULT_GIT_BRANCH: Final = "main"
 CONF_GIT_USERNAME: Final = "git_username"
 DEFAULT_GIT_USERNAME: Final = "git"
 CONF_GIT_TOKEN: Final = "git_token"  # dans entry.data, jamais affiché
+# Délai de calme avant de commiter une modification faite hors Package Keeper (0.5.2).
+# 30 s minimum, non contournable : voir l'explication dans les traductions (options).
+CONF_GIT_DEBOUNCE: Final = "git_debounce"
+DEFAULT_GIT_DEBOUNCE: Final = 30
+MIN_GIT_DEBOUNCE: Final = 30
+MAX_GIT_DEBOUNCE: Final = 3600
